@@ -7,7 +7,6 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { getSession } from '../../utils/session';
 import { fetchCompanyProfile } from '../../api/company';
@@ -15,6 +14,7 @@ import { fetchUserProfile } from '../../api/user_api';
 import { theme } from '../../theme';
 import { API_CONFIG } from '../../api/config';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { Loader, ToastService } from '../../components/common';
 
 export const ProfileScreen = ({ navigation }) => {
   const [profile, setProfile] = useState(null);
@@ -47,6 +47,7 @@ export const ProfileScreen = ({ navigation }) => {
       }
     } catch (e) {
       console.error(e);
+      ToastService.show({ message: 'Failed to load profile', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -59,11 +60,7 @@ export const ProfileScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator
-          size="large"
-          color={theme.colors.primary}
-          style={{ marginTop: 50 }}
-        />
+        <Loader visible={loading} />
       </View>
     );
   }

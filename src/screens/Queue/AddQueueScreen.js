@@ -6,10 +6,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
   Switch,
 } from 'react-native';
+import { Loader, ToastService } from '../../components/common';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { theme } from '../../theme';
@@ -121,7 +120,10 @@ export const AddQueueScreen = ({ navigation, route }) => {
       }
     } catch (e) {
       console.error('Load Queue Details Error:', e);
-      Alert.alert('Error', 'Failed to load queue details');
+      ToastService.show({
+        message: 'Failed to load queue details',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -129,7 +131,10 @@ export const AddQueueScreen = ({ navigation, route }) => {
 
   const handleSave = async (applyToAll = '0') => {
     if (!formData.txtqname || !formData.mobile_number) {
-      Alert.alert('Error', 'Please fill required fields');
+      ToastService.show({
+        message: 'Please fill required fields',
+        type: 'error',
+      });
       return;
     }
 
@@ -192,14 +197,23 @@ export const AddQueueScreen = ({ navigation, route }) => {
           await saveTerminalDisplayIds('', '');
         }
 
-        Alert.alert('Success', resp.message || 'Queue saved successfully');
+        ToastService.show({
+          message: resp.message || 'Queue saved successfully',
+          type: 'success',
+        });
         navigation.goBack();
       } else {
-        Alert.alert('Error', resp?.message || 'Failed to save queue');
+        ToastService.show({
+          message: resp?.message || 'Failed to save queue',
+          type: 'error',
+        });
       }
     } catch (e) {
       console.error('Save Queue Error:', e);
-      Alert.alert('Error', 'An error occurred while saving');
+      ToastService.show({
+        message: 'An error occurred while saving',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -233,7 +247,7 @@ export const AddQueueScreen = ({ navigation, route }) => {
           {locationName}: {companyInfo.locMobile}
         </Text>
       </View>
-
+      {loading && <Loader visible={loading} />}
       <ScrollView contentContainerStyle={styles.content}>
         <>
           <Text style={styles.label}>Queue Name</Text>
@@ -241,13 +255,13 @@ export const AddQueueScreen = ({ navigation, route }) => {
             <MaterialIcons
               name="business"
               size={24}
-              color={theme.colors.textDark}
+              color={theme.colors.iconGray}
               style={styles.leftIcon}
             />
             <TextInput
               style={styles.input}
               placeholder="Queue Full Name"
-              placeholderTextColor={theme.colors.textDark}
+              placeholderTextColor={theme.colors.placeholder}
               value={formData.txtqname}
               onChangeText={text =>
                 setFormData({ ...formData, txtqname: text })
@@ -260,13 +274,13 @@ export const AddQueueScreen = ({ navigation, route }) => {
             <MaterialIcons
               name="smartphone"
               size={24}
-              color={theme.colors.textDark}
+              color={theme.colors.iconGray}
               style={styles.leftIcon}
             />
             <TextInput
               style={styles.input}
               placeholder="Mobile Number"
-              placeholderTextColor={theme.colors.textDark}
+              placeholderTextColor={theme.colors.placeholder}
               keyboardType="phone-pad"
               value={formData.mobile_number}
               onChangeText={text =>
@@ -281,13 +295,13 @@ export const AddQueueScreen = ({ navigation, route }) => {
           <MaterialIcons
             name="mail-outline"
             size={24}
-            color={theme.colors.textDark}
+            color={theme.colors.iconGray}
             style={styles.leftIcon}
           />
           <TextInput
             style={styles.input}
             placeholder="email@domain.com"
-            placeholderTextColor={theme.colors.textDark}
+            placeholderTextColor={theme.colors.placeholder}
             keyboardType="email-address"
             autoCapitalize="none"
             value={formData.email_id}
@@ -304,7 +318,7 @@ export const AddQueueScreen = ({ navigation, route }) => {
             }
             trackColor={{
               false: theme.colors.gray,
-              true: theme.colors.gray,
+              true: theme.colors.redLight,
             }}
             thumbColor={
               formData.add_to_ring_topology
@@ -349,14 +363,14 @@ export const AddQueueScreen = ({ navigation, route }) => {
             onValueChange={v => setFormData({ ...formData, rdprebook: v })}
             trackColor={{
               false: theme.colors.gray,
-              true: theme.colors.gray,
+              true: theme.colors.redLight,
             }}
             thumbColor={
               formData.rdprebook ? theme.colors.primary : theme.colors.white
             }
           />
         </View>
-
+        <Text style={styles.label}>Pre-Booking Days</Text>
         {formData.rdprebook && (
           <View style={styles.daysSelector}>
             <TouchableOpacity onPress={decrementDays} style={styles.dayBtn}>
@@ -386,7 +400,7 @@ export const AddQueueScreen = ({ navigation, route }) => {
             }
             trackColor={{
               false: theme.colors.gray,
-              true: theme.colors.gray,
+              true: theme.colors.redLight,
             }}
             thumbColor={
               formData.switchQueueOnOff
@@ -398,11 +412,11 @@ export const AddQueueScreen = ({ navigation, route }) => {
 
         {formData.switchQueueOnOff && (
           <View style={{ marginTop: 8 }}>
-            <Text style={styles.label}>Max Token</Text>
+            <Text style={styles.label}>Allow Max Tokens</Text>
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
-                placeholder="Max Token"
+                placeholder="Set Max Tokens"
                 keyboardType="numeric"
                 value={formData.max_token}
                 onChangeText={text =>
@@ -418,7 +432,7 @@ export const AddQueueScreen = ({ navigation, route }) => {
           <TextInput
             style={styles.input}
             placeholder="Message Text"
-            placeholderTextColor={theme.colors.textDark}
+            placeholderTextColor={theme.colors.placeholder}
             value={formData.default_message_arrived}
             onChangeText={text =>
               setFormData({ ...formData, default_message_arrived: text })
@@ -430,7 +444,10 @@ export const AddQueueScreen = ({ navigation, route }) => {
           style={styles.navRow}
           onPress={() => {
             if (!formData.txtqname || !formData.mobile_number) {
-              Alert.alert('Error', 'Please enter queue name & mobile number');
+              ToastService.show({
+                message: 'Please enter queue name & mobile number',
+                type: 'error',
+              });
               return;
             }
             navigation.navigate('WorkingHours', {
@@ -456,7 +473,10 @@ export const AddQueueScreen = ({ navigation, route }) => {
             style={styles.navRow}
             onPress={() => {
               if (!formData.txtqname || !formData.mobile_number) {
-                Alert.alert('Error', 'Please enter queue name & mobile number');
+                ToastService.show({
+                  message: 'Please enter queue name & mobile number',
+                  type: 'error',
+                });
                 return;
               }
               navigation.navigate('CompHolidaysList', {
@@ -511,11 +531,7 @@ export const AddQueueScreen = ({ navigation, route }) => {
           onPress={() => handleSave('0')}
           disabled={loading}
         >
-          {loading ? (
-            <ActivityIndicator color={theme.colors.textDark} />
-          ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
-          )}
+          <Text style={styles.saveButtonText}>Save</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -541,7 +557,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.m,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.textDark,
+    borderBottomColor: theme.colors.border,
   },
   subHeaderText: {
     fontSize: 13,
@@ -551,7 +567,7 @@ const styles = StyleSheet.create({
   content: { padding: 20 },
   label: {
     fontSize: 12,
-    color: theme.colors.textDark,
+    color: theme.colors.textSecondary,
     marginTop: 15,
     marginBottom: 5,
     fontWeight: 'bold',
@@ -560,7 +576,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.textDark,
+    borderColor: theme.colors.border,
     borderRadius: 4,
     paddingHorizontal: 10,
     height: 50,
@@ -582,16 +598,21 @@ const styles = StyleSheet.create({
   daysSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
     backgroundColor: theme.colors.white,
     padding: 10,
     borderRadius: 4,
   },
-  dayBtn: { padding: 5 },
+  dayBtn: {
+    padding: 5,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 4,
+  },
   daysText: {
     marginHorizontal: 20,
     fontSize: 16,
     color: theme.colors.textDark,
+    fontWeight: 'bold',
   },
   navRow: {
     flexDirection: 'row',
@@ -626,7 +647,7 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: theme.colors.white,
     borderWidth: 1,
-    borderColor: theme.colors.textDark,
+    borderColor: theme.colors.border,
     borderRadius: 4,
   },
 });

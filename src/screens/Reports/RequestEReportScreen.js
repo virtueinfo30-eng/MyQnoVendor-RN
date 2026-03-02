@@ -5,15 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
-  Alert,
   Modal,
   FlatList,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, Loader, ToastService } from '../../components/common';
 import { getLocQueCombo, sendReportEmail } from '../../api/reports';
 import { theme } from '../../theme';
 
@@ -50,7 +48,10 @@ export const RequestEReportScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Fetch Combo Error:', error);
-      Alert.alert('Error', 'Failed to load location data');
+      ToastService.show({
+        message: 'Failed to load location data',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -92,17 +93,24 @@ export const RequestEReportScreen = ({ navigation }) => {
       });
 
       if (response.found) {
-        Alert.alert(
-          'Success',
-          response.message || 'Report request sent to your email',
-        );
+        ToastService.show({
+          message: response.message || 'Report request sent to your email',
+          type: 'success',
+          duration: 4000,
+        });
         navigation.goBack();
       } else {
-        Alert.alert('Info', response.message || 'Failed to request report');
+        ToastService.show({
+          message: response.message || 'Failed to request report',
+          type: 'info',
+        });
       }
     } catch (error) {
       console.error('Submit Request Error:', error);
-      Alert.alert('Error', 'Failed to send report request');
+      ToastService.show({
+        message: 'Failed to send report request',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -201,7 +209,7 @@ export const RequestEReportScreen = ({ navigation }) => {
                 <FontAwesome
                   name="calendar-o"
                   size={20}
-                  color="#CCC"
+                  color={theme.colors.textLight}
                   style={styles.calendarIcon}
                 />
                 <Text style={styles.dateText}>
@@ -219,7 +227,7 @@ export const RequestEReportScreen = ({ navigation }) => {
                 <FontAwesome
                   name="calendar-o"
                   size={20}
-                  color="#CCC"
+                  color={theme.colors.textLight}
                   style={styles.calendarIcon}
                 />
                 <Text style={styles.dateText}>
@@ -234,12 +242,9 @@ export const RequestEReportScreen = ({ navigation }) => {
             onPress={handleSubmit}
             disabled={loading}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>Request</Text>
-            )}
+            <Text style={styles.submitButtonText}>Request</Text>
           </TouchableOpacity>
+          <Loader visible={loading} message="Sending request…" />
         </View>
       </ScrollView>
 
@@ -346,7 +351,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EFEFEF',
+    borderColor: theme.colors.borderLight,
     borderRadius: 4,
     paddingLeft: 10,
     height: 45,
@@ -354,7 +359,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   disabledPicker: {
-    backgroundColor: '#F9F9F9',
+    backgroundColor: theme.colors.lightGray,
   },
   pickerText: {
     fontSize: 15,
@@ -371,7 +376,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EFEFEF',
+    borderColor: theme.colors.borderLight,
     borderRadius: 4,
     paddingHorizontal: 10,
     height: 45,

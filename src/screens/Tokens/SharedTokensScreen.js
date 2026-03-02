@@ -6,11 +6,10 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { theme } from '../../theme';
 import { fetchSharedTokens, cancelSharedToken } from '../../api/user_api';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, ToastService, Loader } from '../../components/common';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -40,6 +39,7 @@ export const SharedTokensScreen = () => {
       }
     } catch (e) {
       console.error('Session load error:', e);
+      ToastService.show({ message: 'An error occurred', type: 'error' });
     }
   };
 
@@ -66,30 +66,14 @@ export const SharedTokensScreen = () => {
     }
   };
 
-  const handleCancel = token => {
-    Alert.alert(
-      'Confirm Cancellation',
-      'Are you sure you want to remove this shared token?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes',
-          style: 'destructive',
-          onPress: async () => {
-            const result = await cancelSharedToken(
-              userId,
-              token.user_token_shared_id,
-            );
-            if (result.success) {
-              Alert.alert('Success', result.message);
-              loadTokens();
-            } else {
-              Alert.alert('Error', result.message);
-            }
-          },
-        },
-      ],
-    );
+  const handleCancel = async token => {
+    const result = await cancelSharedToken(userId, token.user_token_shared_id);
+    if (result.success) {
+      ToastService.show({ message: result.message, type: 'success' });
+      loadTokens();
+    } else {
+      ToastService.show({ message: result.message, type: 'error' });
+    }
   };
 
   const renderTokenItem = ({ item }) => (
@@ -147,6 +131,7 @@ export const SharedTokensScreen = () => {
   return (
     <View style={styles.container}>
       <CustomHeader title="Shared Tokens" navigation={navigation} />
+      {loading && <Loader visible={loading} />}
       <FlatList
         data={tokens}
         renderItem={renderTokenItem}
@@ -206,10 +191,10 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.s,
   },
   statusActive: {
-    backgroundColor: '#e8f5e9', // Light green
+    backgroundColor: theme.colors.greenLight,
   },
   statusInactive: {
-    backgroundColor: '#ffebee', // Light red
+    backgroundColor: theme.colors.redLight,
   },
   statusText: {
     fontSize: theme.fontSize.small,
@@ -257,7 +242,7 @@ const styles = StyleSheet.create({
   cancelButton: {
     paddingHorizontal: theme.spacing.m,
     paddingVertical: theme.spacing.s,
-    backgroundColor: '#ffebee',
+    backgroundColor: theme.colors.redLight,
     borderRadius: theme.borderRadius.s,
   },
   cancelButtonText: {

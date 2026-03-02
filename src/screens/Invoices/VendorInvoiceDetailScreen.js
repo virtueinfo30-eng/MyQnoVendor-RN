@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   Linking,
   TouchableOpacity,
 } from 'react-native';
@@ -14,6 +13,7 @@ import {
 } from '../../api/vendorInvoice';
 import { theme } from '../../theme';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { Loader } from '../../components/common';
 
 export const VendorInvoiceDetailScreen = ({ navigation, route }) => {
   const { invoice } = route.params || {};
@@ -49,13 +49,7 @@ export const VendorInvoiceDetailScreen = ({ navigation, route }) => {
   };
 
   if (loading) {
-    return (
-      <ActivityIndicator
-        size="large"
-        color={theme.colors.primary}
-        style={styles.loader}
-      />
-    );
+    return <Loader visible={loading} />;
   }
 
   const invoiceData = details?.data?.vendor_invoice || invoice;

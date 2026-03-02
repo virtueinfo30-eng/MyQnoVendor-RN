@@ -4,8 +4,8 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
+import { Loader, ToastService } from '../../components/common';
 import apiClient from '../../api/client';
 import { ENDPOINTS } from '../../api/config';
 import { theme } from '../../theme';
@@ -45,13 +45,8 @@ export const ViewFeedbackScreen = () => {
 
   return (
     <View style={styles.container}>
-      {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={theme.colors.primary}
-          style={{ marginTop: 20 }}
-        />
-      ) : (
+      <Loader visible={loading} />
+      {!loading && (
         <FlatList
           data={feedbacks}
           renderItem={renderItem}

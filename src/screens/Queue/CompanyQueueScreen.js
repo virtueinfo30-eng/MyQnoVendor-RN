@@ -5,13 +5,13 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import { fetchCompanyQueues } from '../../api/company';
 import { getSession } from '../../utils/session';
 import { theme } from '../../theme';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { Loader } from '../../components/common';
 
 export const CompanyQueueScreen = ({ navigation, route }) => {
   const { locationId, locationName, preventAutoPush, location } =
@@ -123,7 +123,9 @@ export const CompanyQueueScreen = ({ navigation, route }) => {
             {
               color:
                 item.message_colour_code ||
-                (item.is_active === '1' ? theme.colors.success : theme.colors.primary),
+                (item.is_active === '1'
+                  ? theme.colors.success
+                  : theme.colors.primary),
             },
           ]}
         >
@@ -152,7 +154,11 @@ export const CompanyQueueScreen = ({ navigation, route }) => {
             })
           }
         >
-          <FontAwesome name="users" size={24} color="#d32f2f" />
+          <FontAwesome
+            name="users"
+            size={24}
+            color={theme.colors.primaryDark}
+          />
         </TouchableOpacity>
         {globalRwMode.toLowerCase() === 'w' && (
           <TouchableOpacity
@@ -172,7 +178,11 @@ export const CompanyQueueScreen = ({ navigation, route }) => {
             <FontAwesome
               name="edit"
               size={24}
-              color={userType.toLowerCase() === 'q' ? '#A9A9A9' : '#d32f2f'}
+              color={
+                userType.toLowerCase() === 'q'
+                  ? theme.colors.borderLight
+                  : theme.colors.primaryDark
+              }
             />
           </TouchableOpacity>
         )}
@@ -212,11 +222,7 @@ export const CompanyQueueScreen = ({ navigation, route }) => {
         </Text>
       </View>
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={theme.colors.primary}
-          style={styles.loader}
-        />
+        <Loader visible={loading} />
       ) : (
         <FlatList
           data={queues}
@@ -237,7 +243,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.m,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#CCCCCC',
+    borderBottomColor: theme.colors.divider,
   },
   subHeaderText: {
     fontSize: theme.fontSize.medium,

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { theme } from '../../theme';
 import { MyTokensTab } from '../../components/MyTokensTab';
 import { SharedTokensTab } from '../../components/SharedTokensTab';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, Loader, ToastService } from '../../components/common';
 import { useNavigation } from '@react-navigation/native';
 
 const TABS = [
@@ -14,9 +14,11 @@ const TABS = [
 export const UserTokensScreen = () => {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('myTokens');
+  const [loading, setLoading] = useState(false);
 
   return (
     <View style={styles.container}>
+      <Loader visible={loading} />
       <CustomHeader title="Tokens" navigation={navigation} />
       {/* Custom Tab Bar */}
       <View style={styles.tabBar}>
@@ -42,7 +44,11 @@ export const UserTokensScreen = () => {
 
       {/* Tab Content */}
       <View style={styles.content}>
-        {activeTab === 'myTokens' ? <MyTokensTab /> : <SharedTokensTab />}
+        {activeTab === 'myTokens' ? (
+          <MyTokensTab loading={loading} setLoading={setLoading} />
+        ) : (
+          <SharedTokensTab loading={loading} setLoading={setLoading} />
+        )}
       </View>
     </View>
   );
@@ -70,7 +76,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: theme.fontSize.medium,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.65)',
+    color: theme.colors.textLightGray,
   },
   activeTabLabel: {
     color: theme.colors.white,

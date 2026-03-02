@@ -5,16 +5,15 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { theme } from '../theme';
+import { ToastService, Loader } from './common';
 import { fetchSharedTokens, cancelSharedToken } from '../api/user_api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const SharedTokensTab = () => {
+export const SharedTokensTab = ({ loading, setLoading }) => {
   const [tokens, setTokens] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState('');
 
@@ -64,29 +63,18 @@ export const SharedTokensTab = () => {
     setRefreshing(false);
   };
 
-  const handleCancelSharedToken = token => {
-    Alert.alert(
-      'Confirm',
-      'Are you sure you want to cancel this shared token?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes',
-          onPress: async () => {
-            const result = await cancelSharedToken(
-              userId,
-              token.user_token_shared_id,
-            );
-            if (result.success) {
-              Alert.alert('Success', result.message);
-              loadTokens();
-            } else {
-              Alert.alert('Error', result.message);
-            }
-          },
-        },
-      ],
-    );
+  const handleCancelSharedToken = async token => {
+    const result = await cancelSharedToken(userId, token.user_token_shared_id);
+    if (result.success) {
+      ToastService.show({
+        message: result.message,
+        type: 'success',
+        duration: 4000,
+      });
+      loadTokens();
+    } else {
+      ToastService.show({ message: result.message, type: 'error' });
+    }
   };
 
   const getStatusColor = status => {
@@ -156,6 +144,7 @@ export const SharedTokensTab = () => {
 
   return (
     <View style={styles.container}>
+      <Loader visible={loading} />
       <FlatList
         data={tokens}
         renderItem={renderTokenItem}

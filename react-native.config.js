@@ -4,6 +4,7 @@ module.exports = {
       platforms: {
         android: {
           cmakeListsPath: null,
+          libraryName: null,
         },
       },
     },

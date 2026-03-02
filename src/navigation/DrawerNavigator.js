@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.m,
+    // marginBottom: theme.spacing.m,
   },
   avatar: {
     width: 50,

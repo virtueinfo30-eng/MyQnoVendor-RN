@@ -5,14 +5,13 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
 import apiClient from '../../api/client';
 import { ENDPOINTS } from '../../api/config';
 import { getSession } from '../../utils/session';
 import { theme } from '../../theme';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { Loader } from '../../components/common';
 
 export const InvoicesScreen = ({ navigation }) => {
   const [invoices, setInvoices] = useState([]);
@@ -57,7 +56,7 @@ export const InvoicesScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Fetch Invoices Error:', error);
-      Alert.alert('Error', 'Failed to fetch invoices');
+      ToastService.show({ message: 'Failed to fetch invoices', type: 'error' });
     }
   };
 
@@ -98,11 +97,7 @@ export const InvoicesScreen = ({ navigation }) => {
         showBackIcon={false}
       />
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={theme.colors.primary}
-          style={styles.loader}
-        />
+        <Loader visible={loading} />
       ) : (
         <FlatList
           data={invoices}

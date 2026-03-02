@@ -6,11 +6,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
-import DocumentPicker from '@react-native-documents/picker';
+import {
+  pick,
+  types,
+  isErrorWithCode,
+  errorCodes,
+} from '@react-native-documents/picker';
 import { theme } from '../theme';
+import { Loader, ToastService } from './common';
 
 export const AddInvoiceModal = ({
   visible,
@@ -40,25 +44,27 @@ export const AddInvoiceModal = ({
 
   const handleFilePick = async () => {
     try {
-      const DocumentPicker = require('@react-native-documents/picker').default;
-      const res = await DocumentPicker.pick({
-        type: [DocumentPicker.types.allFiles],
+      const res = await pick({
+        type: [types.allFiles],
       });
       console.log('File Picked:', res);
       setFile(res[0]);
     } catch (err) {
-      const DocumentPicker = require('@react-native-documents/picker').default;
-      if (DocumentPicker.isCancel(err)) {
-        // User cancelled
+      if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
+        // User cancelled the picker - do nothing
       } else {
-        Alert.alert('Error', 'Failed to pick file');
+        console.log('Error picking file:', err);
+        ToastService.show({ message: 'Failed to pick file', type: 'error' });
       }
     }
   };
 
   const handleSubmit = () => {
     if (!monthYear || !amount) {
-      Alert.alert('Validation', 'Please fill all required fields.');
+      ToastService.show({
+        message: 'Please fill all required fields.',
+        type: 'warning',
+      });
       return;
     }
     onSubmit({ monthYear, amount, note, file, id: invoiceToEdit?.id });
@@ -122,13 +128,12 @@ export const AddInvoiceModal = ({
               onPress={handleSubmit}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator color={theme.colors.white} />
-              ) : (
+              <>
                 <Text style={styles.submitText}>
                   {invoiceToEdit ? 'Update' : 'Submit'}
                 </Text>
-              )}
+                <Loader visible={loading} />
+              </>
             </TouchableOpacity>
           </View>
         </View>
@@ -192,6 +197,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.m,
     alignItems: 'center',
     marginRight: theme.spacing.s,
+    backgroundColor: theme.colors.backgroundLight,
   },
   cancelText: {
     color: theme.colors.textSecondary,

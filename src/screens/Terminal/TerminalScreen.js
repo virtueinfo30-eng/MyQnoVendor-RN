@@ -1,18 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  FlatList,
-  Dimensions,
-  SafeAreaView,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, Dimensions } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { theme } from '../../theme';
 import apiClient from '../../api/client';
 import { getTerminalDisplayIds } from '../../utils/session';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { Loader, ToastService } from '../../components/common';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // A simple flip-like token box
 const TokenBox = ({ token }) => (
@@ -66,6 +60,7 @@ export const TerminalScreen = ({ navigation }) => {
       }, 10000);
     } catch (e) {
       console.error('Terminal Init Error', e);
+      ToastService.show({ message: 'An error occurred', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -227,11 +222,15 @@ export const TerminalScreen = ({ navigation }) => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Loader visible={loading} />
         </View>
       ) : queues.length === 0 ? (
         <View style={styles.center}>
-          <MaterialIcons name="desktop-windows" size={64} color="#CCC" />
+          <MaterialIcons
+            name="desktop-windows"
+            size={64}
+            color={theme.colors.textLight}
+          />
           <Text style={styles.emptyText}>No Active Tokens</Text>
           <Text style={styles.emptySubText}>
             Ensure a location or queue is set up as a display screen in
@@ -260,11 +259,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.white,
   },
   subtitleHeader: {
-    backgroundColor: '#EAEAEA',
+    backgroundColor: theme.colors.lightGray,
     padding: theme.spacing.m,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#CCC',
+    borderBottomColor: theme.colors.borderLight,
   },
   subtitleText: {
     fontSize: theme.fontSize.medium,
@@ -279,7 +278,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: theme.fontSize.xxlarge,
-    color: '#555',
+    color: theme.colors.textLight,
     marginTop: theme.spacing.m,
     fontWeight: 'bold',
   },

@@ -14,7 +14,11 @@ export const SplashScreen = ({ navigation }) => {
 
       if (session && session.logged_user_id) {
         // Basic check, might want to validate token validity via API later
-        navigation.replace('Main');
+        if (session.logged_user_type?.toLowerCase() === 'u') {
+          navigation.replace('Main', { screen: 'Search' });
+        } else {
+          navigation.replace('Main', { screen: 'CompanyLocation' });
+        }
       } else {
         navigation.replace('Login');
       }
@@ -43,7 +47,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: 230, // Adjust size as needed based on the image aspect ratio
-    height: 230,
+    width: 330, // Adjust size as needed based on the image aspect ratio
+    height: 330,
   },
 });

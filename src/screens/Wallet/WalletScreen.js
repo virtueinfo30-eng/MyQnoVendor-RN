@@ -4,10 +4,10 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { Loader } from '../../components/common';
 import { fetchAvailableBalance } from '../../api/wallet';
 import { theme } from '../../theme';
 import { CustomHeader } from '../../components/common/CustomHeader';
@@ -125,6 +125,7 @@ export const WalletScreen = ({ navigation }) => {
         </ScrollView>
       </View>
 
+      <Loader visible={loading} />
       <PackagesTabList packageType={activeTab} onBalanceUpdate={loadData} />
     </View>
   );
@@ -169,7 +170,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#EBEBEB',
+    backgroundColor: theme.colors.divider,
     width: '100%',
     marginVertical: 5,
   },
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.m,
   },
   tabContainer: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.divider,
     ...theme.shadows.light,
   },
   tabButton: {
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.transparent,
   },
   activeTabButton: {
-    borderBottomColor: '#aa333333',
+    borderBottomColor: theme.colors.red,
   },
   tabText: {
     fontSize: theme.fontSize.medium,

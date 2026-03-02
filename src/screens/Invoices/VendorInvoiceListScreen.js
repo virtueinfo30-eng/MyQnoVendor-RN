@@ -5,9 +5,8 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  Alert,
-  ActivityIndicator,
 } from 'react-native';
+import { Loader, ToastService } from '../../components/common';
 import {
   deleteVendorInvoice,
   addVendorInvoice,
@@ -62,7 +61,7 @@ export const VendorInvoiceListScreen = ({ navigation }) => {
         setInvoices([]);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to fetch invoices');
+      ToastService.show({ message: 'Failed to fetch invoices', type: 'error' });
     }
   };
 
@@ -98,43 +97,34 @@ export const VendorInvoiceListScreen = ({ navigation }) => {
         );
       }
       if (res && res.type === 'SUCCESS') {
-        Alert.alert(
-          'Success',
-          `Invoice ${formData.id ? 'updated' : 'added'} successfully`,
-        );
+        ToastService.show({
+          message: `Invoice ${formData.id ? 'updated' : 'added'} successfully`,
+          type: 'success',
+        });
         setModalVisible(false);
         setEditingInvoice(null);
         handleRefresh();
       } else {
-        Alert.alert('Error', res?.message || 'Failed to add invoice');
+        ToastService.show({
+          message: res?.message || 'Failed to add invoice',
+          type: 'error',
+        });
       }
     } catch (e) {
-      Alert.alert('Error', 'Failed to submit invoice');
+      ToastService.show({ message: 'Failed to submit invoice', type: 'error' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = invoiceId => {
-    Alert.alert(
-      'Confirm Delete',
-      'Are you sure you want to delete this invoice?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteVendorInvoice(invoiceId);
-              handleRefresh();
-            } catch (e) {
-              Alert.alert('Error', 'Failed to delete invoice');
-            }
-          },
-        },
-      ],
-    );
+  const handleDelete = async invoiceId => {
+    try {
+      await deleteVendorInvoice(invoiceId);
+      ToastService.show({ message: 'Invoice deleted', type: 'success' });
+      handleRefresh();
+    } catch (e) {
+      ToastService.show({ message: 'Failed to delete invoice', type: 'error' });
+    }
   };
 
   const renderItem = ({ item }) => (
@@ -212,13 +202,14 @@ export const VendorInvoiceListScreen = ({ navigation }) => {
         title="Vendor Invoices"
         navigation={navigation}
         showBackIcon={false}
+        rightIconName="add"
+        rightIconPress={() => {
+          setEditingInvoice(null);
+          setModalVisible(true);
+        }}
       />
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={theme.colors.primary}
-          style={styles.loader}
-        />
+        <Loader visible={loading} />
       ) : (
         <FlatList
           data={invoices}
@@ -235,7 +226,7 @@ export const VendorInvoiceListScreen = ({ navigation }) => {
         />
       )}
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.fab}
         onPress={() => {
           setEditingInvoice(null);
@@ -243,7 +234,7 @@ export const VendorInvoiceListScreen = ({ navigation }) => {
         }}
       >
         <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       <AddInvoiceModal
         visible={modalVisible}
@@ -333,7 +324,7 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.s,
   },
   editText: {
-    color: '#3498db',
+    color: theme.colors.blue,
     fontWeight: 'bold',
   },
   deleteButton: {

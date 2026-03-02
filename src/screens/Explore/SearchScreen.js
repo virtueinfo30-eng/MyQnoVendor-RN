@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  Alert,
   Animated,
   Dimensions,
   Image,
@@ -17,7 +16,7 @@ import { theme } from '../../theme';
 import { getCompanyCategories } from '../../api/auth';
 import { searchCompanies } from '../../api/user_api';
 import { useNavigation } from '@react-navigation/native';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, Loader } from '../../components/common';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const { width } = Dimensions.get('window');
@@ -102,7 +101,7 @@ export const SearchScreen = () => {
     } else {
       setResults([]);
       if (searchText || selectedCategoryId) {
-        Alert.alert('No Results', result.message);
+        ToastService.show({ message: result.message, type: 'info' });
       }
     }
   };
@@ -117,7 +116,7 @@ export const SearchScreen = () => {
       style={styles.companyCard}
       onPress={() => {
         console.log('Navigating with item:', item);
-        Alert.alert('Coming Soon...');
+        ToastService.show({ message: 'Coming Soon...', type: 'info' });
         // navigation.navigate('ConfirmToken', {
         //   companyLocationId: item.company_locations_id,
         //   companyName: item.company_name,
@@ -191,10 +190,10 @@ export const SearchScreen = () => {
       {/* Location Header */}
       <View style={styles.locationHeader}>
         <TouchableOpacity style={styles.gpsIcon}>
-          <Icon name="my-location" size={24} color="#fff" />
+          <Icon name="my-location" size={24} color={theme.colors.white} />
         </TouchableOpacity>
         <View style={styles.locationTextContainer}>
-          <Icon name="location-on" size={24} color="#fff" />
+          <Icon name="location-on" size={24} color={theme.colors.white} />
           <Text style={styles.locationText}>{locationName}</Text>
         </View>
       </View>
@@ -346,6 +345,7 @@ export const SearchScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
+              {loading && <Loader visible={loading} />}
               {loading ? 'Searching...' : 'No companies found'}
             </Text>
           </View>
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filterPanel: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background,
     overflow: 'hidden',
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,

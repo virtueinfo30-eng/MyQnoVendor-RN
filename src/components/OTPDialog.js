@@ -6,9 +6,9 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { theme } from '../theme';
+import { ToastService } from './common';
 
 export const OTPDialog = ({ visible, onClose, onVerify, mobile, onResend }) => {
   const [otp, setOtp] = useState('');
@@ -16,7 +16,7 @@ export const OTPDialog = ({ visible, onClose, onVerify, mobile, onResend }) => {
 
   const handleVerify = async () => {
     if (!otp.trim()) {
-      Alert.alert('Error', 'Please enter OTP');
+      ToastService.show({ message: 'Please enter OTP', type: 'warning' });
       return;
     }
 

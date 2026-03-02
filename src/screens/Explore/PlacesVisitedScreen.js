@@ -13,7 +13,7 @@ import { theme } from '../../theme';
 import { fetchPlacesVisited } from '../../api/user_api';
 import { useNavigation } from '@react-navigation/native';
 import { CustomInput } from '../../components/CustomInput';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, Loader, ToastService } from '../../components/common';
 
 export const PlacesVisitedScreen = () => {
   const navigation = useNavigation();
@@ -118,6 +118,7 @@ export const PlacesVisitedScreen = () => {
 
   return (
     <View style={styles.container}>
+      <Loader visible={loading} />
       <CustomHeader title="Places Visited" navigation={navigation} />
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -148,7 +149,7 @@ export const PlacesVisitedScreen = () => {
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>🏢</Text>
             <Text style={styles.emptyText}>
-              {loading ? 'Loading...' : 'No places visited yet'}
+              loading ? '' : 'No places visited yet'
             </Text>
             <Text style={styles.emptySubtext}>
               Places you visit will appear here
@@ -362,7 +363,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: theme.colors.borderLight,
     borderRadius: theme.borderRadius.s,
     marginBottom: theme.spacing.m,
     paddingHorizontal: theme.spacing.s,

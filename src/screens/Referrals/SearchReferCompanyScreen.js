@@ -6,13 +6,11 @@ import {
   TextInput,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
   Modal,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { theme } from '../../theme';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, Loader, ToastService } from '../../components/common';
 import {
   searchReferCompanies,
   fetchReferQueues,
@@ -37,7 +35,7 @@ export const SearchReferCompanyScreen = ({ navigation, route }) => {
     if (result.success) {
       setCompanies(result.data);
     } else {
-      Alert.alert('Error', result.message);
+      ToastService.show({ message: result.message, type: 'error' });
     }
     setLoading(false);
   };
@@ -50,7 +48,7 @@ export const SearchReferCompanyScreen = ({ navigation, route }) => {
     if (result.success) {
       setQueues(result.data);
     } else {
-      Alert.alert('Error', result.message);
+      ToastService.show({ message: result.message, type: 'error' });
     }
     setQueuesLoading(false);
   };
@@ -64,11 +62,14 @@ export const SearchReferCompanyScreen = ({ navigation, route }) => {
       today,
     );
     if (result.success) {
-      Alert.alert('Success', result.message, [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      ToastService.show({
+        message: result.message,
+        type: 'success',
+        duration: 4000,
+      });
+      navigation.goBack();
     } else {
-      Alert.alert('Error', result.message);
+      ToastService.show({ message: result.message, type: 'error' });
     }
     setQueueModalVisible(false);
   };
@@ -92,32 +93,23 @@ export const SearchReferCompanyScreen = ({ navigation, route }) => {
           <MaterialIcons name="search" size={24} color="white" />
         </TouchableOpacity>
       </View>
-
-      {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={theme.colors.primary}
-          style={{ marginTop: 20 }}
-        />
-      ) : (
-        <FlatList
-          data={companies}
-          keyExtractor={item => item.company_locations_id.toString()}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.item}
-              onPress={() => handleSelectCompany(item)}
-            >
-              <Text style={styles.itemName}>{item.company_name}</Text>
-              <Text style={styles.itemSub}>{item.location_name}</Text>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.empty}>Search to find companies</Text>
-          }
-        />
-      )}
-
+      <Loader visible={loading} />
+      <FlatList
+        data={companies}
+        keyExtractor={item => item.company_locations_id.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => handleSelectCompany(item)}
+          >
+            <Text style={styles.itemName}>{item.company_name}</Text>
+            <Text style={styles.itemSub}>{item.location_name}</Text>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={
+          <Text style={styles.empty}>Search to find companies</Text>
+        }
+      />
       {/* Queue Selection Modal */}
       <Modal
         visible={queueModalVisible}
@@ -128,7 +120,7 @@ export const SearchReferCompanyScreen = ({ navigation, route }) => {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Queue</Text>
             {queuesLoading ? (
-              <ActivityIndicator color={theme.colors.primary} />
+              <Loader visible={queuesLoading} />
             ) : (
               <FlatList
                 data={queues}

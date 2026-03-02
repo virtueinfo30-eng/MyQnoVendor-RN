@@ -3,11 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  Alert,
   TouchableOpacity,
   PermissionsAndroid,
   Platform,
 } from 'react-native';
+import { ToastService } from '../../components/common';
 import { Camera, CameraType } from 'react-native-camera-kit';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../theme';
@@ -36,10 +36,10 @@ export const ScanQRCodeScreen = () => {
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
           setHasPermission(true);
         } else {
-          Alert.alert(
-            'Permission Denied',
-            'Camera permission is required to scan QR codes',
-          );
+          ToastService.show({
+            message: 'Camera permission is required to scan QR codes',
+            type: 'error',
+          });
           navigation.goBack();
         }
       } catch (err) {
@@ -68,7 +68,10 @@ export const ScanQRCodeScreen = () => {
         noOfPersons: '1',
       });
     } else {
-      Alert.alert('Invalid QR', 'Could not read location ID from QR');
+      ToastService.show({
+        message: 'Could not read location ID from QR',
+        type: 'error',
+      });
     }
   };
 

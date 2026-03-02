@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
 } from 'react-native';
+import { Loader, ToastService } from '../../components/common';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { theme } from '../../theme';
 import { CustomHeader } from '../../components/common/CustomHeader';
@@ -60,7 +61,11 @@ export const ReportsScreen = ({ navigation }) => {
       <View style={styles.menuLeft}>
         <Text style={styles.menuText}>{item.title}</Text>
       </View>
-      <MaterialIcons name="chevron-right" size={24} color="#C7C7CC" />
+      <MaterialIcons
+        name="chevron-right"
+        size={24}
+        color={theme.colors.textLight}
+      />
     </TouchableOpacity>
   );
 
@@ -83,7 +88,7 @@ export const ReportsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7', // Standard light gray background
+    backgroundColor: theme.colors.lightGray,
   },
   menuItem: {
     flexDirection: 'row',
@@ -92,7 +97,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: theme.colors.borderLight,
     backgroundColor: theme.colors.white,
   },
   menuLeft: {

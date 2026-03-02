@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  Switch,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, Switch, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme } from '../../theme';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { Loader, ToastService } from '../../components/common';
 
 export const SettingsScreen = ({ navigation }) => {
   const [isLocationUpdateEnabled, setIsLocationUpdateEnabled] = useState(true);
@@ -26,6 +21,7 @@ export const SettingsScreen = ({ navigation }) => {
       }
     } catch (e) {
       console.error('Failed to load location preference', e);
+      ToastService.show({ message: 'Settings save failed', type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -56,14 +52,19 @@ export const SettingsScreen = ({ navigation }) => {
         <View style={styles.row}>
           <Text style={styles.label}>Enable Location Update</Text>
           {isLoading ? (
-            <ActivityIndicator size="small" color={theme.colors.primary} />
+            <Loader visible={isLoading} />
           ) : (
             <Switch
               value={isLocationUpdateEnabled}
               onValueChange={toggleSwitch}
-              trackColor={{ false: '#767577', true: '#ffb3b3' }}
+              trackColor={{
+                false: theme.colors.borderLight,
+                true: theme.colors.border,
+              }}
               thumbColor={
-                isLocationUpdateEnabled ? theme.colors.primary : '#f4f3f4'
+                isLocationUpdateEnabled
+                  ? theme.colors.primary
+                  : theme.colors.borderLight
               }
             />
           )}
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.border,
   },
   sectionHeader: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.surface,
     paddingVertical: theme.spacing.m,
     paddingHorizontal: theme.spacing.l,
     justifyContent: 'center',

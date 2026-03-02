@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   RefreshControl,
   Share,
   Modal,
@@ -14,15 +13,15 @@ import {
   Platform,
 } from 'react-native';
 import { theme } from '../theme';
+import { ToastService, Loader } from './common';
 import { fetchMyTokens, cancelToken, addFeedback } from '../api/user_api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
-import Geolocation from '@react-native-community/geolocation';
+import { getCurrentLocation } from '../utils/location';
 
-export const MyTokensTab = () => {
+export const MyTokensTab = ({ loading, setLoading }) => {
   const navigation = useNavigation();
   const [tokens, setTokens] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState('');
   const [userLocation, setUserLocation] = useState(null);
@@ -33,13 +32,23 @@ export const MyTokensTab = () => {
   const [comment, setComment] = useState('');
   const [selectedToken, setSelectedToken] = useState(null);
 
+  const isMounted = useRef(true);
+  const permissionRequestInProgress = useRef(false);
+
   useEffect(() => {
+    isMounted.current = true;
     console.log('🔄 [MyTokensTab] Mounting...');
     loadUserId();
     // Small delay to ensure Activity is ready for permission dialog
     setTimeout(() => {
-      requestLocationPermission();
-    }, 500);
+      if (isMounted.current) {
+        requestLocationPermission();
+      }
+    }, 1000);
+
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -67,88 +76,40 @@ export const MyTokensTab = () => {
       console.error('Error loading user ID:', error);
     }
   };
-
   const requestLocationPermission = async () => {
-    console.log('📍 [MyTokensTab] requestLocationPermission START');
-    try {
-      if (!Geolocation) {
-        console.warn('❌ [MyTokensTab] Geolocation module is UNDEFINED');
-        return;
-      }
-
-      if (Platform.OS === 'ios') {
-        console.log('📍 [MyTokensTab] iOS: Requesting Authorization...');
-        if (typeof Geolocation.requestAuthorization !== 'function') {
-          console.warn(
-            '❌ [MyTokensTab] Geolocation.requestAuthorization is not a function',
-          );
-          return;
-        }
-        const auth = await Geolocation.requestAuthorization('whenInUse');
-        console.log('📍 [MyTokensTab] iOS: Authorization result:', auth);
-        if (auth !== 'granted') return;
-      }
-
-      if (Platform.OS === 'android') {
-        console.log(
-          '📍 [MyTokensTab] Android: Checking existing permission...',
-        );
-        const hasPermission = await PermissionsAndroid.check(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        );
-        console.log('📍 [MyTokensTab] Android: Has permission?', hasPermission);
-
-        if (!hasPermission) {
-          console.log(
-            '📍 [MyTokensTab] Android: Requesting Permission (Simplified)...',
-          );
-          // USE MINIMAL REQUEST: Rationale object often causes crashes on certain devices
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          );
-          console.log('📍 [MyTokensTab] Android: Permission result:', granted);
-          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-            console.log('📍 [MyTokensTab] Permission DENIED');
-            return;
-          }
-        }
-      }
-
+    if (permissionRequestInProgress.current) {
       console.log(
-        '📍 [MyTokensTab] Calling @react-native-community/geolocation.getCurrentPosition...',
+        '📍 [MyTokensTab] Permission request already in progress, skipping...',
       );
-      if (typeof Geolocation.getCurrentPosition !== 'function') {
-        console.warn(
-          '❌ [MyTokensTab] Community Geolocation.getCurrentPosition is not a function',
-        );
-        return;
-      }
+      return;
+    }
 
-      // Try with highAccuracy: false first to see if it avoids the crash
-      Geolocation.getCurrentPosition(
-        position => {
-          console.log(
-            '📍 [MyTokensTab] Community GPS Success:',
-            position.coords.latitude,
-            position.coords.longitude,
-          );
-          if (position && position.coords) {
-            setUserLocation({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            });
-          }
-        },
-        error => {
-          console.warn('❌ [MyTokensTab] Community GPS Error:', error);
-        },
-        { enableHighAccuracy: false, timeout: 20000, maximumAge: 10000 },
-      );
+    console.log(
+      '📍 [MyTokensTab] requestLocationPermission START (via utility)',
+    );
+    permissionRequestInProgress.current = true;
+
+    try {
+      const location = await getCurrentLocation();
+      console.log('📍 [MyTokensTab] Utility returned location:', location);
+
+      if (isMounted.current && location) {
+        setUserLocation({
+          lat: location.latitude,
+          lng: location.longitude,
+        });
+      }
     } catch (err) {
-      console.error(
-        '💥 [MyTokensTab] CRITICAL ERROR in requestLocationPermission:',
-        err,
-      );
+      console.error('📍 [MyTokensTab] Error using location utility:', err);
+      if (isMounted.current) {
+        ToastService.show({
+          message:
+            'Unable to get current location. Please check your GPS settings.',
+          type: 'warning',
+        });
+      }
+    } finally {
+      permissionRequestInProgress.current = false;
     }
   };
 
@@ -194,42 +155,25 @@ export const MyTokensTab = () => {
     setRefreshing(false);
   };
 
-  const handleCancelToken = token => {
-    Alert.alert('Confirm', 'Are you sure you want to cancel this token?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes',
-        onPress: async () => {
-          const result = await cancelToken(token.user_token_id);
-          if (result.success) {
-            Alert.alert('Success', result.message);
-            loadTokens();
-          } else {
-            Alert.alert('Error', result.message);
-          }
-        },
-      },
-    ]);
+  const handleCancelToken = async token => {
+    const result = await cancelToken(token.user_token_id);
+    if (result.success) {
+      ToastService.show({
+        message: result.message,
+        type: 'success',
+        duration: 4000,
+      });
+      loadTokens();
+    } else {
+      ToastService.show({ message: result.message, type: 'error' });
+    }
   };
 
   const handleShareOption = token => {
-    Alert.alert('Share Token', 'Select how you want to share this token:', [
-      {
-        text: 'Social Share (Link)',
-        onPress: () => handleSocialShare(token),
-      },
-      {
-        text: 'Share to MyQno User (Contacts)',
-        onPress: () =>
-          navigation.navigate('ContactSelection', {
-            userTokenId: token.user_token_id,
-          }),
-      },
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-    ]);
+    // Show a simple UI choice — navigate to contacts or do social share
+    navigation.navigate('ContactSelection', {
+      userTokenId: token.user_token_id,
+    });
   };
 
   const handleSocialShare = async token => {
@@ -252,7 +196,7 @@ export const MyTokensTab = () => {
 
   const submitFeedback = async () => {
     if (rating === 0) {
-      Alert.alert('Error', 'Please select a rating');
+      ToastService.show({ message: 'Please select a rating', type: 'warning' });
       return;
     }
 
@@ -264,13 +208,17 @@ export const MyTokensTab = () => {
     );
 
     if (result.success) {
-      Alert.alert('Success', 'Feedback submitted successfully');
+      ToastService.show({
+        message: 'Feedback submitted successfully',
+        type: 'success',
+        duration: 4000,
+      });
       setFeedbackVisible(false);
       setRating(0);
       setComment('');
       setSelectedToken(null);
     } else {
-      Alert.alert('Error', result.message);
+      ToastService.show({ message: result.message, type: 'error' });
     }
   };
 
@@ -366,6 +314,7 @@ export const MyTokensTab = () => {
 
   return (
     <View style={styles.container}>
+      <Loader visible={loading} />
       <FlatList
         data={tokens}
         renderItem={renderTokenItem}

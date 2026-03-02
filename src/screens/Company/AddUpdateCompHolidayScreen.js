@@ -7,14 +7,12 @@ import {
   TextInput,
   TouchableOpacity,
   Switch,
-  Alert,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { theme } from '../../theme';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, Loader, ToastService } from '../../components/common';
 import { saveHoliday, fetchHolidayQueueList } from '../../api/company';
 
 export const AddUpdateCompHolidayScreen = ({ route, navigation }) => {
@@ -35,10 +33,10 @@ export const AddUpdateCompHolidayScreen = ({ route, navigation }) => {
     date: holidayData?.holiday_date
       ? new Date(holidayData.holiday_date)
       : new Date(),
-    isPartial: holidayData?.working_day_status === 'P',
+    isPartial: isUpdate ? holidayData?.working_day_status === 'P' : true,
     startTime: holidayData?.start_time || '09:00',
     endTime: holidayData?.end_time || '18:00',
-    applyAll: false,
+    applyAll: isUpdate ? true : false,
   });
 
   const [datePickerShow, setDatePickerShow] = useState(false);
@@ -65,10 +63,11 @@ export const AddUpdateCompHolidayScreen = ({ route, navigation }) => {
             .map(q => ({
               id: q.queue_master_id,
               name: q.queue_name_group,
-              selected:
-                holidayData?.other_queue_details?.some(
-                  oq => oq.queue_master_id === q.queue_master_id,
-                ) || false,
+              selected: isUpdate
+                ? true
+                : holidayData?.other_queue_details?.some(
+                    oq => oq.queue_master_id === q.queue_master_id,
+                  ) || false,
             }));
           setQueues(mapped);
         }
@@ -127,7 +126,10 @@ export const AddUpdateCompHolidayScreen = ({ route, navigation }) => {
 
   const handleSave = async () => {
     if (!formData.name) {
-      Alert.alert('Error', 'Please enter holiday name');
+      ToastService.show({
+        message: 'Please enter holiday name',
+        type: 'error',
+      });
       return;
     }
 
@@ -155,15 +157,24 @@ export const AddUpdateCompHolidayScreen = ({ route, navigation }) => {
 
       const resp = await saveHoliday(isUpdate, data);
       if (resp && resp.found) {
-        Alert.alert('Success', resp.message || 'Holiday saved successfully', [
-          { text: 'OK', onPress: () => navigation.goBack() },
-        ]);
+        ToastService.show({
+          message: resp.message || 'Holiday saved successfully',
+          type: 'success',
+          duration: 4000,
+        });
+        navigation.goBack();
       } else {
-        Alert.alert('Error', resp?.message || 'Failed to save holiday');
+        ToastService.show({
+          message: resp?.message || 'Failed to save holiday',
+          type: 'error',
+        });
       }
     } catch (e) {
       console.error('Save Holiday Error:', e);
-      Alert.alert('Error', 'An error occurred while saving');
+      ToastService.show({
+        message: 'An error occurred while saving',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -237,7 +248,7 @@ export const AddUpdateCompHolidayScreen = ({ route, navigation }) => {
                 }
                 trackColor={{
                   false: theme.colors.border,
-                  true: theme.colors.border,
+                  true: theme.colors.redLight,
                 }}
                 thumbColor={
                   formData.isPartial
@@ -304,17 +315,14 @@ export const AddUpdateCompHolidayScreen = ({ route, navigation }) => {
                 <Text style={styles.applyAllText}>Apply to all</Text>
                 <View style={styles.applyAllSwitchContainer}>
                   {queuesLoading ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={theme.colors.primary}
-                    />
+                    <Loader visible={queuesLoading} />
                   ) : (
                     <Switch
                       value={formData.applyAll}
                       onValueChange={handleApplyAllChange}
                       trackColor={{
                         false: theme.colors.border,
-                        true: theme.colors.border,
+                        true: theme.colors.redLight,
                       }}
                       thumbColor={
                         formData.applyAll
@@ -358,7 +366,7 @@ export const AddUpdateCompHolidayScreen = ({ route, navigation }) => {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color={theme.colors.white} />
+                <Loader visible={loading} message="Saving…" />
               ) : (
                 <Text style={styles.addBtnText}>
                   {isUpdate ? 'Update' : 'Add'}
@@ -550,7 +558,7 @@ const styles = StyleSheet.create({
   },
   addBtn: {
     flex: 1,
-    backgroundColor: '#d32f2f',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 14,
     alignItems: 'center',
     marginRight: 10,

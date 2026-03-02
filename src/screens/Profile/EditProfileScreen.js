@@ -6,13 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
-  Alert,
   Modal,
   FlatList,
   Image,
   Platform,
 } from 'react-native';
+import { Loader, ToastService } from '../../components/common';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { CustomHeader } from '../../components/common/CustomHeader';
@@ -181,7 +180,10 @@ export const EditProfileScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Load Profile Data Error:', error);
-      Alert.alert('Error', 'Failed to load profile data');
+      ToastService.show({
+        message: 'Failed to load profile data',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -203,7 +205,7 @@ export const EditProfileScreen = ({ navigation }) => {
       const statesList = await getStatesList(id);
       setStates(statesList || []);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load states');
+      ToastService.show({ message: 'Failed to load states', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -223,7 +225,7 @@ export const EditProfileScreen = ({ navigation }) => {
       const citiesList = await getCitiesList(id);
       setCities(citiesList || []);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load cities');
+      ToastService.show({ message: 'Failed to load cities', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -231,11 +233,17 @@ export const EditProfileScreen = ({ navigation }) => {
   const handleUpdate = async () => {
     const isPersonal = isUserProfile;
     if (!isPersonal && !form.comp_name) {
-      Alert.alert('Validation', 'Please enter company name');
+      ToastService.show({
+        message: 'Please enter company name',
+        type: 'warning',
+      });
       return;
     }
     if (!form.first_name || !form.last_name || !form.mobile_number) {
-      Alert.alert('Validation', 'Please fill all required fields');
+      ToastService.show({
+        message: 'Please fill all required fields',
+        type: 'warning',
+      });
       return;
     }
 
@@ -262,15 +270,21 @@ export const EditProfileScreen = ({ navigation }) => {
       }
 
       if (resp && (resp.found || resp.success) && resp.type !== 'ERROR') {
-        Alert.alert('Success', resp.message || 'Profile updated successfully', [
-          { text: 'OK', onPress: () => navigation.goBack() },
-        ]);
+        ToastService.show({
+          message: resp.message || 'Profile updated successfully',
+          type: 'success',
+          duration: 4000,
+        });
+        navigation.goBack();
       } else {
-        Alert.alert('Error', resp?.message || 'Failed to update profile');
+        ToastService.show({
+          message: resp?.message || 'Failed to update profile',
+          type: 'error',
+        });
       }
     } catch (error) {
       console.error('Update Profile Error:', error);
-      Alert.alert('Error', 'Failed to update profile');
+      ToastService.show({ message: 'Failed to update profile', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -376,6 +390,7 @@ export const EditProfileScreen = ({ navigation }) => {
         showBackIcon={true}
         navigation={navigation}
       />
+      {loading && <Loader visible={loading} />}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.logoHeader}>
           {profileImage ? (
@@ -516,7 +531,11 @@ export const EditProfileScreen = ({ navigation }) => {
               style={styles.inputIcon}
             />
             <Text style={styles.textInput}>{form.countryName}</Text>
-            <MaterialIcons name="arrow-drop-down" size={24} color={theme.colors.iconLight} />
+            <MaterialIcons
+              name="arrow-drop-down"
+              size={24}
+              color={theme.colors.iconLight}
+            />
           </TouchableOpacity>
 
           <Text style={styles.label}>State</Text>
@@ -534,7 +553,11 @@ export const EditProfileScreen = ({ navigation }) => {
               style={styles.inputIcon}
             />
             <Text style={styles.textInput}>{form.stateName}</Text>
-            <MaterialIcons name="arrow-drop-down" size={24} color={theme.colors.iconLight} />
+            <MaterialIcons
+              name="arrow-drop-down"
+              size={24}
+              color={theme.colors.iconLight}
+            />
           </TouchableOpacity>
 
           <Text style={styles.label}>City</Text>
@@ -552,7 +575,11 @@ export const EditProfileScreen = ({ navigation }) => {
               style={styles.inputIcon}
             />
             <Text style={styles.textInput}>{form.cityName}</Text>
-            <MaterialIcons name="arrow-drop-down" size={24} color={theme.colors.iconLight} />
+            <MaterialIcons
+              name="arrow-drop-down"
+              size={24}
+              color={theme.colors.iconLight}
+            />
           </TouchableOpacity>
 
           <Text style={styles.label}>
@@ -566,7 +593,10 @@ export const EditProfileScreen = ({ navigation }) => {
               style={styles.inputIcon}
             />
             <TextInput
-              style={[styles.textInput, isUserProfile && { color: theme.colors.iconGray }]}
+              style={[
+                styles.textInput,
+                isUserProfile && { color: theme.colors.iconGray },
+              ]}
               value={form.mobile_number}
               keyboardType="phone-pad"
               editable={!isUserProfile} // Matches native ProfileUserFragment behavior
@@ -586,7 +616,10 @@ export const EditProfileScreen = ({ navigation }) => {
               style={styles.inputIcon}
             />
             <TextInput
-              style={[styles.textInput, isUserProfile && { color: theme.colors.iconGray }]}
+              style={[
+                styles.textInput,
+                isUserProfile && { color: theme.colors.iconGray },
+              ]}
               value={form.email_id}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -721,7 +754,7 @@ export const EditProfileScreen = ({ navigation }) => {
                       : 'check-box-outline-blank'
                   }
                   size={24}
-                  color="#000"
+                  color={theme.colors.black}
                 />
                 <Text style={styles.checkboxLabel}>Active Company</Text>
               </TouchableOpacity>
@@ -743,7 +776,7 @@ export const EditProfileScreen = ({ navigation }) => {
                       : 'check-box-outline-blank'
                   }
                   size={24}
-                  color="#000"
+                  color={theme.colors.black}
                 />
                 <Text style={styles.checkboxLabel}>Allow Paid Token</Text>
               </TouchableOpacity>
@@ -858,11 +891,7 @@ export const EditProfileScreen = ({ navigation }) => {
             onPress={handleUpdate}
             disabled={loading}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.saveButtonText}>Save</Text>
-            )}
+            <Text style={styles.saveButtonText}>Save Changes</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -1032,7 +1061,7 @@ const styles = StyleSheet.create({
     color: theme.colors.iconDark,
   },
   saveButton: {
-    backgroundColor: '#D32F2F', // Specific red from screenshot
+    backgroundColor: theme.colors.red, // Specific red from screenshot
     height: 50,
     borderRadius: 4,
     justifyContent: 'center',
@@ -1121,7 +1150,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#ccc',
+    borderColor: theme.colors.borderLight,
     borderRadius: 8,
     padding: 20,
   },

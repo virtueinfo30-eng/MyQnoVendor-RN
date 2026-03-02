@@ -6,25 +6,19 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert,
   Platform,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { theme } from '../../theme';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { ToastService } from '../../components/common';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export const WorkingHoursScreen = ({ route, navigation }) => {
-  const {
-    initialTimeSlots,
-    onSave,
-    locationName,
-    queueName,
-    compMobile,
-    locMobile,
-  } = route.params || {};
+  const { initialTimeSlots, onSave, queueName, compMobile, location } =
+    route.params || {};
 
   const [timeSlots, setTimeSlots] = useState(
     initialTimeSlots ||
@@ -90,7 +84,10 @@ export const WorkingHoursScreen = ({ route, navigation }) => {
     } else {
       const startTimeStr = updated[dayIndex].startTime;
       if (timeStr <= startTimeStr) {
-        Alert.alert('Invalid Time', 'End time must be after start time');
+        ToastService.show({
+          message: 'End time must be after start time',
+          type: 'error',
+        });
         setPickerConfig({ ...pickerConfig, show: false });
         return;
       }
@@ -101,53 +98,20 @@ export const WorkingHoursScreen = ({ route, navigation }) => {
   };
 
   const applyToAll = () => {
-    // Find the first active day or just use Monday
     const firstActive = timeSlots.find(d => d.active) || timeSlots[0];
-
-    Alert.alert(
-      'Apply to All Days',
-      `Copy ${firstActive.day}'s timings (${firstActive.startTime} - ${firstActive.endTime}) to all other enabled days?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Apply',
-          onPress: () => {
-            const updated = timeSlots.map(d => ({
-              ...d,
-              startTime: firstActive.startTime,
-              endTime: firstActive.endTime,
-              // We don't necessarily want to force-active all days,
-              // usually users want to match timings for days they work.
-              // But if none are active, maybe active all?
-              // Let's stick to just timings as per native "apply to all" logic often works.
-            }));
-            setTimeSlots(updated);
-          },
-        },
-      ],
-    );
+    const updated = timeSlots.map(d => ({
+      ...d,
+      startTime: firstActive.startTime,
+      endTime: firstActive.endTime,
+    }));
+    setTimeSlots(updated);
+    ToastService.show({
+      message: `${firstActive.day}'s timings applied to all days`,
+      type: 'success',
+    });
   };
 
   const handleSave = () => {
-    const activeCount = timeSlots.filter(d => d.active).length;
-    if (activeCount === 0) {
-      Alert.alert(
-        'Warning',
-        'No days are marked as active. The queue will be closed everyday. Continue?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Yes, Save',
-            onPress: () => {
-              onSave && onSave(timeSlots);
-              navigation.goBack();
-            },
-          },
-        ],
-      );
-      return;
-    }
-
     onSave && onSave(timeSlots);
     navigation.goBack();
   };
@@ -163,7 +127,7 @@ export const WorkingHoursScreen = ({ route, navigation }) => {
       {/* Sub Header (from params) */}
       <View style={styles.subHeader}>
         <Text style={styles.subHeaderText}>{queueName}</Text>
-        <Text style={styles.subHeaderText}>{locationName}</Text>
+        <Text style={styles.subHeaderText}>{location}</Text>
         <Text style={styles.subHeaderText}>{compMobile}</Text>
       </View>
 
@@ -220,7 +184,7 @@ export const WorkingHoursScreen = ({ route, navigation }) => {
                 <MaterialIcons
                   name="arrow-drop-down"
                   size={20}
-                  color="#C4C4C4"
+                  color={theme.colors.iconDark}
                 />
               </TouchableOpacity>
             </View>
@@ -243,7 +207,7 @@ export const WorkingHoursScreen = ({ route, navigation }) => {
                 <MaterialIcons
                   name="arrow-drop-down"
                   size={20}
-                  color="#C4C4C4"
+                  color={theme.colors.iconDark}
                 />
               </TouchableOpacity>
             </View>
@@ -273,13 +237,13 @@ export const WorkingHoursScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     padding: theme.spacing.m,
   },
   subHeader: {
-    backgroundColor: '#EAEAEA',
+    backgroundColor: theme.colors.backgroundLight,
     paddingVertical: 15,
     paddingHorizontal: 20,
     alignItems: 'center',
@@ -353,7 +317,7 @@ const styles = StyleSheet.create({
     color: theme.colors.iconDark,
   },
   disabledText: {
-    color: '#A0A0A0',
+    color: theme.colors.iconGray,
   },
   bottomSaveBtn: {
     backgroundColor: theme.colors.primary,

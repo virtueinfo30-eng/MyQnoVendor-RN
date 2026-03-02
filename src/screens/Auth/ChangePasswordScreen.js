@@ -5,14 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
-  ActivityIndicator,
 } from 'react-native';
 import apiClient from '../../api/client';
 import { ENDPOINTS } from '../../api/config';
 import { theme } from '../../theme';
 import { getSession } from '../../utils/session';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { Loader, ToastService } from '../../components/common';
 
 export const ChangePasswordScreen = ({ navigation }) => {
   const [oldPassword, setOldPassword] = useState('');
@@ -22,11 +21,14 @@ export const ChangePasswordScreen = ({ navigation }) => {
 
   const handleChange = async () => {
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'New passwords do not match');
+      ToastService.show({
+        message: 'New passwords do not match',
+        type: 'error',
+      });
       return;
     }
     if (!oldPassword || !newPassword) {
-      Alert.alert('Error', 'Please fill all fields');
+      ToastService.show({ message: 'Please fill all fields', type: 'warning' });
       return;
     }
 
@@ -38,7 +40,6 @@ export const ChangePasswordScreen = ({ navigation }) => {
       formData.append('opassword', oldPassword);
       formData.append('npassword', newPassword);
       formData.append('rnpassword', confirmPassword);
-      // Native app might use different params or user_id, adjusting based on standard pattern
 
       const response = await apiClient.post(
         ENDPOINTS.CHANGE_PASSWORD,
@@ -49,18 +50,24 @@ export const ChangePasswordScreen = ({ navigation }) => {
       );
 
       if (response.data && response.data.type === 'SUCCESS') {
-        Alert.alert('Success', 'Password changed successfully');
+        ToastService.show({
+          message: 'Password changed successfully',
+          type: 'success',
+        });
         setOldPassword('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
-        Alert.alert(
-          'Error',
-          response.data?.message || 'Failed to change password',
-        );
+        ToastService.show({
+          message: response.data?.message || 'Failed to change password',
+          type: 'error',
+        });
       }
     } catch (e) {
-      Alert.alert('Error', 'Failed to change password');
+      ToastService.show({
+        message: 'Failed to change password',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -106,12 +113,9 @@ export const ChangePasswordScreen = ({ navigation }) => {
           onPress={handleChange}
           disabled={loading}
         >
-          {loading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.buttonText}>Update Password</Text>
-          )}
+          <Text style={styles.buttonText}>Update Password</Text>
         </TouchableOpacity>
+        <Loader visible={loading} message="Updating password…" />
       </View>
     </View>
   );

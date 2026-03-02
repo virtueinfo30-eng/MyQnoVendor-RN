@@ -13,41 +13,69 @@ export const getCurrentLocation = () => {
             hasPermission = true;
           }
         } else if (Platform.OS === 'android') {
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-            {
-              title: 'Location Permission',
-              message:
-                'This app needs access to your location to show queues nearby.',
-              buttonNeutral: 'Ask Me Later',
-              buttonNegative: 'Cancel',
-              buttonPositive: 'OK',
-            },
+          console.log(
+            '📍 [utils/location] Android: Requesting Multiple Permissions...',
           );
-          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          const granted = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+          ]);
+
+          console.log(
+            '📍 [utils/location] Android: Permission results:',
+            granted,
+          );
+
+          const fineGranted =
+            granted['android.permission.ACCESS_FINE_LOCATION'] ===
+            PermissionsAndroid.RESULTS.GRANTED;
+          const coarseGranted =
+            granted['android.permission.ACCESS_COARSE_LOCATION'] ===
+            PermissionsAndroid.RESULTS.GRANTED;
+
+          if (fineGranted || coarseGranted) {
             hasPermission = true;
           }
         }
 
         if (hasPermission) {
+          console.log(
+            '📍 [utils/location] Permission GRANTED, calling getCurrentPosition...',
+          );
           Geolocation.getCurrentPosition(
             position => {
+              console.log(
+                '📍 [utils/location] SUCCESS:',
+                position.coords.latitude,
+                position.coords.longitude,
+              );
               resolve({
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
               });
             },
             error => {
-              console.error('Location Error:', error);
+              console.error(
+                '📍 [utils/location] ERROR:',
+                error.code,
+                error.message,
+              );
               reject(error);
             },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+            {
+              enableHighAccuracy: false,
+              timeout: 10000,
+              maximumAge: 10000,
+              showLocationDialog: false,
+              forceRequestLocation: false,
+            },
           );
         } else {
+          console.warn('📍 [utils/location] Permission DENIED');
           reject(new Error('Location permission denied'));
         }
       } catch (err) {
-        console.error('Unexpected location error:', err);
+        console.error('📍 [utils/location] CRITICAL ERROR:', err);
         reject(err);
       }
     })();

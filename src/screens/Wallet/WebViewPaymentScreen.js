@@ -1,14 +1,9 @@
 import React, { useRef, useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Text,
-  SafeAreaView,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { CustomAlert } from '../../components/common';
 import { theme } from '../../theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export const WebViewPaymentScreen = ({ route, navigation }) => {
   const { paymentConfiInfo } = route.params;

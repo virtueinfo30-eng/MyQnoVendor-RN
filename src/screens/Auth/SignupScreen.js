@@ -5,10 +5,8 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Modal,
   FlatList,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -22,7 +20,7 @@ import {
   registerVendor,
 } from '../api/auth';
 import { theme } from '../../theme';
-import { AuthHeader } from '../../components/common';
+import { AuthHeader, Loader, ToastService } from '../../components/common';
 
 const RadioButton = ({ label, selected, onPress }) => (
   <TouchableOpacity style={styles.radioButtonContainer} onPress={onPress}>
@@ -106,7 +104,7 @@ export const SignupScreen = ({ navigation }) => {
       const statesList = await getStatesList(id);
       setStates(statesList || []);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load states');
+      ToastService.show({ message: 'Failed to load states', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -126,7 +124,7 @@ export const SignupScreen = ({ navigation }) => {
       const citiesList = await getCitiesList(id);
       setCities(citiesList || []);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load cities');
+      ToastService.show({ message: 'Failed to load cities', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -144,7 +142,10 @@ export const SignupScreen = ({ navigation }) => {
       !form.invoice_state_id ||
       !form.invoice_city_id
     ) {
-      Alert.alert('Validation', 'Please fill all required fields');
+      ToastService.show({
+        message: 'Please fill all required fields',
+        type: 'warning',
+      });
       return;
     }
 
@@ -160,19 +161,20 @@ export const SignupScreen = ({ navigation }) => {
       });
 
       if (response.found && response.type === 'SUCCESS') {
-        Alert.alert(
-          'Success',
-          response.message || 'Account created successfully',
-          [{ text: 'OK', onPress: () => navigation.replace('Auth') }],
-        );
+        ToastService.show({
+          message: response.message || 'Account created successfully',
+          type: 'success',
+          duration: 4000,
+        });
+        navigation.replace('Auth');
       } else {
-        Alert.alert(
-          'Registration Failed',
-          response.message || 'Something went wrong',
-        );
+        ToastService.show({
+          message: response.message || 'Something went wrong',
+          type: 'error',
+        });
       }
     } catch (error) {
-      Alert.alert('Error', 'Signup request failed');
+      ToastService.show({ message: 'Signup request failed', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -514,12 +516,9 @@ export const SignupScreen = ({ navigation }) => {
               onPress={handleSignup}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator color={theme.colors.white} />
-              ) : (
-                <Text style={styles.submitButtonText}>Submit</Text>
-              )}
+              <Text style={styles.submitButtonText}>Submit</Text>
             </TouchableOpacity>
+            <Loader visible={loading} message="Creating account…" />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

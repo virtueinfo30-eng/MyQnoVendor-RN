@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
   ScrollView,
   Modal,
   TextInput,
@@ -26,6 +24,7 @@ import { calculateDistance } from '../../utils/distance';
 import { getSession } from '../../utils/session';
 import { theme } from '../../theme';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { Loader, ToastService } from '../../components/common';
 
 export const CompActiveQueueScreen = ({ navigation, route }) => {
   const {
@@ -78,7 +77,7 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
 
   const handleIssueToken = async () => {
     if (!formData.mobile_number || !formData.fullname || !formData.persons) {
-      Alert.alert('Error', 'Please fill all fields');
+      ToastService.show({ message: 'Please fill all fields', type: 'warning' });
       return;
     }
 
@@ -92,16 +91,25 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
       });
 
       if (result.found) {
-        Alert.alert('Success', result.message || 'Token issued successfully');
+        ToastService.show({
+          message: result.message || 'Token issued successfully',
+          type: 'success',
+        });
         setModalVisible(false);
         setFormData({ mobile_number: '', fullname: '', persons: '1' });
-        loadData(); // Refresh grid
+        loadData();
       } else {
-        Alert.alert('Error', result.message || 'Failed to issue token');
+        ToastService.show({
+          message: result.message || 'Failed to issue token',
+          type: 'error',
+        });
       }
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'An unexpected error occurred');
+      ToastService.show({
+        message: 'An unexpected error occurred',
+        type: 'error',
+      });
     } finally {
       setIssuing(false);
     }
@@ -143,7 +151,10 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
       }
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Failed to load queue activity');
+      ToastService.show({
+        message: 'Failed to load queue activity',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -158,14 +169,17 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
         status: status, // 'A' for Arrived, 'N' for Not Arrived
       });
       if (result.found) {
-        Alert.alert('Success', result.message);
+        ToastService.show({ message: result.message, type: 'success' });
         loadData();
       } else {
-        Alert.alert('Error', result.message || 'Failed to update status');
+        ToastService.show({
+          message: result.message || 'Failed to update status',
+          type: 'error',
+        });
       }
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Failed to update status');
+      ToastService.show({ message: 'Failed to update status', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -181,14 +195,17 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
         newNo,
       );
       if (result.found) {
-        Alert.alert('Success', result.message);
+        ToastService.show({ message: result.message, type: 'success' });
         loadData();
       } else {
-        Alert.alert('Error', result.message || 'Failed to swap token');
+        ToastService.show({
+          message: result.message || 'Failed to swap token',
+          type: 'error',
+        });
       }
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Failed to swap token');
+      ToastService.show({ message: 'Failed to swap token', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -203,13 +220,19 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
         comp_id: session.logged_company_id,
       });
       if (result.found) {
-        Alert.alert('Success', result.message);
+        ToastService.show({ message: result.message, type: 'success' });
       } else {
-        Alert.alert('Error', result.message || 'Failed to send notification');
+        ToastService.show({
+          message: result.message || 'Failed to send notification',
+          type: 'error',
+        });
       }
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Failed to send notification');
+      ToastService.show({
+        message: 'Failed to send notification',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -310,12 +333,7 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
           )}
         </View>
 
-        {loading && !gridData && (
-          <ActivityIndicator
-            style={{ marginTop: 20 }}
-            color={theme.colors.primary}
-          />
-        )}
+        {loading && !gridData && <Loader visible={loading} />}
 
         {gridData &&
         gridData.activitygrid_data &&
@@ -341,7 +359,11 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
 
                     {/* Placeholder for User Pic - Natively uses rounded image view */}
                     <View style={styles.userPicPlaceholder}>
-                      <MaterialIcons name="person" size={30} color={theme.colors.textLight} />
+                      <MaterialIcons
+                        name="person"
+                        size={30}
+                        color={theme.colors.textLight}
+                      />
                     </View>
 
                     <View style={styles.userInfo}>
@@ -361,7 +383,11 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
                       </View>
                     </View>
 
-                    <MaterialIcons name="more-vert" size={24} color={theme.colors.textLight} />
+                    <MaterialIcons
+                      name="more-vert"
+                      size={24}
+                      color={theme.colors.textLight}
+                    />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -438,16 +464,13 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
                   onPress={handleIssueToken}
                   disabled={issuing}
                 >
-                  {issuing ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.buttonText}>OK</Text>
-                  )}
+                  <Text style={styles.buttonText}>OK</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
+        <Loader visible={issuing} message="Issuing token…" />
 
         {/* User Action Modal (Bottom Sheet Style) */}
         <Modal
@@ -533,7 +556,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.m,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#CCCCCC',
+    borderBottomColor: theme.colors.divider,
   },
   subHeaderText: {
     fontSize: theme.fontSize.small,
@@ -550,7 +573,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xl,
   },
   sectionHeader: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.surface,
     padding: theme.spacing.s,
     paddingHorizontal: theme.spacing.m,
     borderBottomWidth: 1,
@@ -588,11 +611,11 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: '#CCC',
+    borderColor: theme.colors.divider,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: theme.spacing.m,
-    backgroundColor: '#F9F9F9',
+    backgroundColor: theme.colors.surface,
   },
   userInfo: {
     flex: 1,
@@ -685,7 +708,7 @@ const styles = StyleSheet.create({
     color: theme.colors.iconDark,
   },
   disabledInput: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.surface,
     justifyContent: 'center',
   },
   inputText: {

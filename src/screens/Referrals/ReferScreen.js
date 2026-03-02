@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   PermissionsAndroid,
   Platform,
   TextInput,
@@ -13,7 +12,7 @@ import {
 import Contacts from 'react-native-contacts';
 import { theme } from '../../theme';
 import { referFriends, importContacts } from '../../api/user_api';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, ToastService, Loader } from '../../components/common';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const ReferScreen = ({ navigation }) => {
@@ -41,10 +40,10 @@ export const ReferScreen = ({ navigation }) => {
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
           loadContacts();
         } else {
-          Alert.alert(
-            'Permission Denied',
-            'Cannot access contacts without permission',
-          );
+          ToastService.show({
+            message: 'Cannot access contacts without permission',
+            type: 'error',
+          });
         }
       } catch (err) {
         console.warn(err);
@@ -66,7 +65,10 @@ export const ReferScreen = ({ navigation }) => {
       })
       .catch(error => {
         console.error('Error loading contacts:', error);
-        Alert.alert('Error', 'Failed to load contacts');
+        ToastService.show({
+          message: 'Failed to load contacts',
+          type: 'error',
+        });
       });
   };
 
@@ -107,10 +109,10 @@ export const ReferScreen = ({ navigation }) => {
 
   const handleRefer = async () => {
     if (selectedContacts.length === 0) {
-      Alert.alert(
-        'No Contacts Selected',
-        'Please select at least one contact to refer',
-      );
+      ToastService.show({
+        message: 'Please select at least one contact to refer',
+        type: 'warning',
+      });
       return;
     }
 
@@ -119,17 +121,14 @@ export const ReferScreen = ({ navigation }) => {
     setLoading(false);
 
     if (result.success) {
-      Alert.alert('Success', result.message, [
-        {
-          text: 'OK',
-          onPress: () => {
-            setSelectedContacts([]);
-            navigation.goBack();
-          },
-        },
-      ]);
-    } else {
-      Alert.alert('Error', result.message);
+      ToastService.show({
+        message: result.message,
+        type: 'success',
+        duration: 4000,
+      });
+      setSelectedContacts([]);
+      navigation.goBack();
+      ToastService.show({ message: result.message, type: 'error' });
     }
   };
 
@@ -181,6 +180,7 @@ export const ReferScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {loading && <Loader visible={loading} />}
       <FlatList
         data={filteredContacts}
         renderItem={renderContact}
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     ...theme.shadows.light,
   },
   selectedContact: {
-    backgroundColor: 'rgba(230, 36, 48, 0.05)',
+    backgroundColor: theme.colors.overlayLightGray,
     borderColor: theme.colors.primary,
     borderWidth: 1,
   },

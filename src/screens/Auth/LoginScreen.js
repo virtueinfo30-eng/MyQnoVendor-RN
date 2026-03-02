@@ -5,18 +5,16 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Modal,
   FlatList,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { loginUser, getCountriesList, forgotPassword } from '../api/auth';
+import { loginUser, getCountriesList, forgotPassword } from '../../api/auth';
 import { theme } from '../../theme';
-import { AuthHeader } from '../../components/common';
+import { AuthHeader, Loader, ToastService } from '../../components/common';
 import { saveSession } from '../../utils/session';
 
 export const LoginScreen = ({ navigation }) => {
@@ -50,21 +48,30 @@ export const LoginScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.log('Error fetching countries', error);
-      Alert.alert('Error', 'Failed to load countries list');
+      ToastService.show({
+        message: 'Failed to load countries list',
+        type: 'error',
+      });
     }
   };
 
   const handleLogin = async () => {
     if (!countryId) {
-      Alert.alert('Validation', 'Please select a country');
+      ToastService.show({
+        message: 'Please select a country',
+        type: 'warning',
+      });
       return;
     }
     if (!username.trim()) {
-      Alert.alert('Validation', 'Please enter mobile number');
+      ToastService.show({
+        message: 'Please enter mobile number',
+        type: 'warning',
+      });
       return;
     }
     if (!password) {
-      Alert.alert('Validation', 'Please enter password');
+      ToastService.show({ message: 'Please enter password', type: 'warning' });
       return;
     }
 
@@ -79,21 +86,26 @@ export const LoginScreen = ({ navigation }) => {
       ) {
         const saved = await saveSession(response.data);
         if (saved) {
-          // Parity fix: Redirect based on user type as in native MainActivity.java
-          // If 'u' -> SearchScreen, else -> Main (CompanyLocation)
+          // Role-based navigation: user → Search, others → CompanyLocation
           if (response.data.logged_user_type?.toLowerCase() === 'u') {
             navigation.replace('Main', { screen: 'Search' });
           } else {
-            navigation.replace('Main');
+            navigation.replace('Main', { screen: 'CompanyLocation' });
           }
         } else {
-          Alert.alert('Error', 'Failed to save session');
+          ToastService.show({
+            message: 'Failed to save session',
+            type: 'error',
+          });
         }
       } else {
-        Alert.alert('Login Failed', response.message || 'Invalid credentials');
+        ToastService.show({
+          message: response.message || 'Invalid credentials',
+          type: 'error',
+        });
       }
     } catch (error) {
-      Alert.alert('Error', 'Login request failed');
+      ToastService.show({ message: 'Login request failed', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -101,18 +113,21 @@ export const LoginScreen = ({ navigation }) => {
 
   const handleForgotPassword = async () => {
     if (!countryId || !username.trim()) {
-      Alert.alert(
-        'Required',
-        'Please select country and enter mobile number first.',
-      );
+      ToastService.show({
+        message: 'Please select country and enter mobile number first.',
+        type: 'warning',
+      });
       return;
     }
     setLoading(true);
     try {
       const res = await forgotPassword(countryId, username);
-      Alert.alert('Result', res.message || 'Please check your SMS');
+      ToastService.show({
+        message: res.message || 'Please check your SMS',
+        type: 'info',
+      });
     } catch (e) {
-      Alert.alert('Error', 'Failed to reset password');
+      ToastService.show({ message: 'Failed to reset password', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -227,12 +242,9 @@ export const LoginScreen = ({ navigation }) => {
               onPress={handleLogin}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator color={theme.colors.white} />
-              ) : (
-                <Text style={styles.loginButtonText}>Login</Text>
-              )}
+              <Text style={styles.loginButtonText}>Login</Text>
             </TouchableOpacity>
+            <Loader visible={loading} />
 
             {/* Forgot Password */}
             <TouchableOpacity

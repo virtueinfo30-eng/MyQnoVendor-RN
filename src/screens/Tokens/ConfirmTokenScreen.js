@@ -6,15 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { theme } from '../../theme';
 import { fetchActiveQueues, queueMeIn } from '../../api/user_api';
 import { getCurrentLocation } from '../../utils/location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, Loader, ToastService } from '../../components/common';
 
 export const ConfirmTokenScreen = () => {
   const route = useRoute();
@@ -83,13 +81,19 @@ export const ConfirmTokenScreen = () => {
         setSelectedQueue(result.data[0]);
       }
     } else {
-      Alert.alert('Error', result.message || 'Failed to fetch queues');
+      ToastService.show({
+        message: result.message || 'Failed to fetch queues',
+        type: 'error',
+      });
     }
   };
 
   const handleBookToken = async () => {
     if (!selectedQueue) {
-      Alert.alert('Selection Required', 'Please select a queue first.');
+      ToastService.show({
+        message: 'Please select a queue first.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -102,11 +106,14 @@ export const ConfirmTokenScreen = () => {
     setBookingLoading(false);
 
     if (result.success) {
-      Alert.alert('Success', result.message, [
-        { text: 'OK', onPress: () => navigation.navigate('UserTokens') }, // Navigate to UserTokens on success
-      ]);
+      ToastService.show({
+        message: result.message,
+        type: 'success',
+        duration: 4000,
+      });
+      navigation.navigate('UserTokens');
     } else {
-      Alert.alert('Booking Failed', result.message);
+      ToastService.show({ message: result.message, type: 'error' });
     }
   };
 
@@ -148,12 +155,7 @@ export const ConfirmTokenScreen = () => {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Loading Queues...</Text>
-      </View>
-    );
+    return <Loader visible={loading} message="Loading Queues…" />;
   }
 
   return (
@@ -201,12 +203,9 @@ export const ConfirmTokenScreen = () => {
           onPress={handleBookToken}
           disabled={!selectedQueue || bookingLoading}
         >
-          {bookingLoading ? (
-            <ActivityIndicator color={theme.colors.white} />
-          ) : (
-            <Text style={styles.bookButtonText}>Get Token</Text>
-          )}
+          <Text style={styles.bookButtonText}>Get Token</Text>
         </TouchableOpacity>
+        <Loader visible={bookingLoading} message="Booking token…" />
       </View>
     </View>
   );
@@ -346,7 +345,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bookButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: theme.colors.textLight,
   },
   bookButtonText: {
     color: theme.colors.white,

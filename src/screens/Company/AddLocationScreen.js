@@ -6,12 +6,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
   Modal,
   FlatList,
   Platform,
 } from 'react-native';
+import { Loader, ToastService } from '../../components/common';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { theme } from '../../theme';
@@ -177,39 +176,98 @@ export const AddLocationScreen = ({ navigation, route }) => {
     return false;
   };
 
+  // Step 1: Check if mobile is duplicate
   const handleVerifyMobile = async () => {
     const mobile = formData.mobile.trim();
     if (!mobile || mobile.length < 10) {
-      Alert.alert('Error', 'Please enter a valid mobile number first');
+      ToastService.show({
+        message: 'Please enter a valid mobile number first',
+        type: 'error',
+      });
       return;
     }
     setOtpLoading(true);
     try {
       const session = await getSession();
-      const url = `${ENDPOINTS.GENERATE_OTP}/${mobile}/L/101/${session.logged_company_id}/-1/-1`;
-      const resp = await apiClient.get(url);
-      if (resp.data && resp.data.type === 'SUCCESS') {
-        setServerOtp(resp.data.OTP || '');
+      const companyId = session.logged_company_id;
+      const ctryId = formData.cmb_country || '101';
+      const locId = isEdit
+        ? route.params?.location?.company_locations_id || '-1'
+        : '-1';
+
+      // Step 1: Check for duplicate mobile
+      const dupUrl = `${ENDPOINTS.CHECK_DUPLICATE_MOBILE}/${mobile}/L/${ctryId}/${companyId}/${locId}/-1`;
+      const dupResp = await apiClient.get(dupUrl);
+      const dupData = dupResp.data;
+
+      if (dupData?.code === '1') {
+        // Mobile is already used elsewhere
+        ToastService.show({
+          message: dupData.message || 'Mobile number already in use',
+          type: 'error',
+        });
+        return;
+      }
+
+      // Step 2: Generate OTP
+      const otpUrl = `${ENDPOINTS.GENERATE_OTP}/${mobile}/L/${ctryId}/${companyId}/${locId}/-1`;
+      const otpResp = await apiClient.get(otpUrl);
+
+      if (otpResp.data?.type === 'SUCCESS') {
+        setServerOtp(otpResp.data.OTP || '');
         setOtpValue('');
         setOtpDialogVisible(true);
       } else {
-        Alert.alert('Error', resp.data?.message || 'Failed to send OTP');
+        ToastService.show({
+          message: otpResp.data?.message || 'Failed to send OTP',
+          type: 'error',
+        });
       }
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Failed to send OTP');
+      ToastService.show({ message: 'Failed to send OTP', type: 'error' });
     } finally {
       setOtpLoading(false);
     }
   };
 
-  const handleConfirmOtp = () => {
-    if (otpValue.trim() === serverOtp.trim()) {
-      setMobileVerified(true);
-      setOtpDialogVisible(false);
-      Alert.alert('Success', 'Mobile number verified successfully');
-    } else {
-      Alert.alert('Error', 'Incorrect OTP. Please try again.');
+  // Step 3: Confirm OTP via API (matches native ConfirmOTP)
+  const handleConfirmOtp = async () => {
+    const otp = otpValue.trim();
+    if (!otp) {
+      ToastService.show({ message: 'Please enter OTP', type: 'warning' });
+      return;
+    }
+    setOtpLoading(true);
+    try {
+      const session = await getSession();
+      const mobile = formData.mobile.trim();
+      const ctryId = formData.cmb_country || '101';
+      const locId = isEdit
+        ? route.params?.location?.company_locations_id || '-1'
+        : '-1';
+
+      const confirmUrl = `${ENDPOINTS.CONFIRM_OTP}/${mobile}/L/${ctryId}/${locId}/${otp}`;
+      const resp = await apiClient.get(confirmUrl);
+
+      if (resp.data?.type === 'SUCCESS') {
+        setMobileVerified(true);
+        setOtpDialogVisible(false);
+        ToastService.show({
+          message: resp.data.message || 'Mobile number verified successfully',
+          type: 'success',
+        });
+      } else {
+        ToastService.show({
+          message: resp.data?.message || 'Incorrect OTP. Please try again.',
+          type: 'error',
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      ToastService.show({ message: 'OTP verification failed', type: 'error' });
+    } finally {
+      setOtpLoading(false);
     }
   };
 
@@ -218,10 +276,10 @@ export const AddLocationScreen = ({ navigation, route }) => {
     const hasPermission = await requestLocationPermission();
 
     if (!hasPermission) {
-      Alert.alert(
-        'Permission Denied',
-        'Location permission is required to fetch coordinates.',
-      );
+      ToastService.show({
+        message: 'Location permission is required to fetch coordinates.',
+        type: 'error',
+      });
       setLoading(false);
       return;
     }
@@ -250,12 +308,18 @@ export const AddLocationScreen = ({ navigation, route }) => {
           longitude: String(longitude),
           address: address, // update address
         }));
-        Alert.alert('Success', 'Coordinates and address fetched successfully.');
+        ToastService.show({
+          message: 'Coordinates and address fetched successfully.',
+          type: 'success',
+        });
         setLoading(false);
       },
       error => {
         console.error('Location Error', error);
-        Alert.alert('Error', `Failed to get location: ${error.message}`);
+        ToastService.show({
+          message: `Failed to get location: ${error.message}`,
+          type: 'error',
+        });
         setLoading(false);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
@@ -264,7 +328,10 @@ export const AddLocationScreen = ({ navigation, route }) => {
 
   const handleSave = async () => {
     if (!formData.location_name || !formData.address || !formData.mobile) {
-      Alert.alert('Error', 'Please fill all required fields');
+      ToastService.show({
+        message: 'Please fill all required fields',
+        type: 'error',
+      });
       return;
     }
 
@@ -317,17 +384,23 @@ export const AddLocationScreen = ({ navigation, route }) => {
           await saveTerminalDisplayIds('', '');
         }
 
-        Alert.alert('Success', response.data.message || 'Location saved');
+        ToastService.show({
+          message: response.data.message || 'Location saved',
+          type: 'success',
+        });
         navigation.goBack();
       } else {
-        Alert.alert(
-          'Error',
-          response.data?.message || 'Failed to save location',
-        );
+        ToastService.show({
+          message: response.data?.message || 'Failed to save location',
+          type: 'error',
+        });
       }
     } catch (error) {
       console.error('Save location error', error);
-      Alert.alert('Error', 'An error occurred while saving the location');
+      ToastService.show({
+        message: 'An error occurred while saving the location',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -340,6 +413,7 @@ export const AddLocationScreen = ({ navigation, route }) => {
         showBackIcon={true}
         navigation={navigation}
       />
+      {loading && <Loader visible={loading} />}
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.label}>Country</Text>
         <View style={styles.inputContainer}>
@@ -383,7 +457,10 @@ export const AddLocationScreen = ({ navigation, route }) => {
           style={styles.inputContainer}
           onPress={() => {
             if (!formData.cmb_state) {
-              Alert.alert('Info', 'Please select state first');
+              ToastService.show({
+                message: 'Please select state first',
+                type: 'info',
+              });
               return;
             }
             setPickerType('city');
@@ -478,11 +555,7 @@ export const AddLocationScreen = ({ navigation, route }) => {
               disabled={otpLoading}
               style={styles.verifyBtn}
             >
-              {otpLoading ? (
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-              ) : (
-                <Text style={styles.verifyBtnText}>Verify</Text>
-              )}
+              <Text style={styles.otpButtonText}>Send OTP</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -506,29 +579,53 @@ export const AddLocationScreen = ({ navigation, route }) => {
           />
         </View>
 
-        <TouchableOpacity
-          style={styles.locationPickerContainer}
-          onPress={handleSetLocation}
-        >
-          <MaterialIcons
-            name="location-on"
-            size={20}
-            color={theme.colors.primary}
-            style={styles.leftIcon}
-          />
-          {!formData.latitude ? (
-            <Text style={styles.locationText}>Set Latitude - Longitude</Text>
-          ) : (
+        {isEdit ? (
+          /* Edit mode: show existing lat/lng, with an option to update */
+          <TouchableOpacity
+            style={styles.locationViewContainer}
+            onPress={handleSetLocation}
+          >
+            <MaterialIcons
+              name="location-on"
+              size={20}
+              color={theme.colors.primary}
+              style={styles.leftIcon}
+            />
             <Text style={styles.locationText}>
-              {formData.latitude} - {formData.longitude}
+              {formData.latitude} , {formData.longitude}
             </Text>
-          )}
-          <MaterialIcons
-            name="keyboard-arrow-right"
-            size={24}
-            color={theme.colors.primary}
-          />
-        </TouchableOpacity>
+            <MaterialIcons
+              name="keyboard-arrow-right"
+              size={24}
+              color={theme.colors.primary}
+            />
+          </TouchableOpacity>
+        ) : (
+          /* Add mode: button to fetch GPS coordinates */
+          <TouchableOpacity
+            style={styles.locationPickerContainer}
+            onPress={handleSetLocation}
+          >
+            <MaterialIcons
+              name="location-on"
+              size={20}
+              color={theme.colors.primary}
+              style={styles.leftIcon}
+            />
+            {!formData.latitude || formData.latitude === '22.997554' ? (
+              <Text style={styles.locationText}>Set Latitude - Longitude</Text>
+            ) : (
+              <Text style={styles.locationText}>
+                {formData.latitude} , {formData.longitude}
+              </Text>
+            )}
+            <MaterialIcons
+              name="keyboard-arrow-right"
+              size={24}
+              color={theme.colors.primary}
+            />
+          </TouchableOpacity>
+        )}
 
         {isEdit && (
           <TouchableOpacity
@@ -547,7 +644,11 @@ export const AddLocationScreen = ({ navigation, route }) => {
                   : 'check-box-outline-blank'
               }
               size={24}
-              color={formData.isactive === '1' ? theme.colors.black : theme.colors.iconGray}
+              color={
+                formData.isactive === '1'
+                  ? theme.colors.black
+                  : theme.colors.iconGray
+              }
             />
             <Text style={styles.checkboxLabel}>Active Location</Text>
           </TouchableOpacity>
@@ -572,11 +673,7 @@ export const AddLocationScreen = ({ navigation, route }) => {
           onPress={handleSave}
           disabled={loading}
         >
-          {loading ? (
-            <ActivityIndicator color={theme.colors.white} />
-          ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
-          )}
+          <Text style={styles.saveButtonText}>Save</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -604,7 +701,10 @@ export const AddLocationScreen = ({ navigation, route }) => {
             />
             <View style={styles.otpBtnRow}>
               <TouchableOpacity
-                style={[styles.otpBtn, { backgroundColor: theme.colors.iconGray }]}
+                style={[
+                  styles.otpBtn,
+                  { backgroundColor: theme.colors.iconGray },
+                ]}
                 onPress={() => setOtpDialogVisible(false)}
               >
                 <Text style={styles.otpBtnText}>Cancel</Text>
@@ -644,12 +744,20 @@ export const AddLocationScreen = ({ navigation, route }) => {
                 Select {pickerType === 'state' ? 'State' : 'City'}
               </Text>
               <TouchableOpacity onPress={() => setShowPicker(false)}>
-                <MaterialIcons name="close" size={24} color={theme.colors.iconDark} />
+                <MaterialIcons
+                  name="close"
+                  size={24}
+                  color={theme.colors.iconDark}
+                />
               </TouchableOpacity>
             </View>
 
             <View style={styles.searchBar}>
-              <MaterialIcons name="search" size={20} color={theme.colors.iconGray} />
+              <MaterialIcons
+                name="search"
+                size={20}
+                color={theme.colors.iconGray}
+              />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search..."
@@ -737,7 +845,7 @@ const styles = StyleSheet.create({
   locationPickerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.lightGray,
     padding: 12,
     marginTop: 20,
     borderRadius: 4,
@@ -747,6 +855,25 @@ const styles = StyleSheet.create({
     color: theme.colors.textDark,
     fontSize: 16,
     marginLeft: 8,
+  },
+  locationViewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.lightGray,
+    padding: 12,
+    marginTop: 20,
+    borderRadius: 4,
+  },
+  updateLocBtn: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  updateLocBtnText: {
+    color: theme.colors.white,
+    fontSize: 13,
+    fontWeight: 'bold',
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -771,6 +898,11 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontSize: 16,
     fontWeight: 'normal',
+  },
+  otpButtonText: {
+    color: theme.colors.white,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   modalOverlay: {
     flex: 1,

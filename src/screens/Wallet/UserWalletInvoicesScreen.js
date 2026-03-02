@@ -12,7 +12,7 @@ import {
   fetchWalletBalance,
   fetchUserWalletInvoices,
 } from '../../api/user_api';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, Loader } from '../../components/common';
 import { useNavigation } from '@react-navigation/native';
 
 export const UserWalletInvoicesScreen = () => {
@@ -53,8 +53,8 @@ export const UserWalletInvoicesScreen = () => {
   };
 
   const getTransactionTypeColor = type => {
-    if (type === 'credit' || type === 'C') return '#4CAF50';
-    if (type === 'debit' || type === 'D') return '#F44336';
+    if (type === 'credit' || type === 'C') return theme.colors.green;
+    if (type === 'debit' || type === 'D') return theme.colors.red;
     return theme.colors.textSecondary;
   };
 
@@ -133,6 +133,7 @@ export const UserWalletInvoicesScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
+              {loading && <Loader visible={loading} />}
               {loading ? 'Loading transactions...' : 'No transactions found'}
             </Text>
             <Text style={styles.emptySubtext}>

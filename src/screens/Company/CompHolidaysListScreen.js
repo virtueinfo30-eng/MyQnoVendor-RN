@@ -5,13 +5,11 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
-  ActivityIndicator,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../theme';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, Loader, ToastService } from '../../components/common';
 import { fetchHolidays, deleteHoliday } from '../../api/company';
 
 export const CompHolidaysListScreen = ({ route, navigation }) => {
@@ -38,7 +36,7 @@ export const CompHolidaysListScreen = ({ route, navigation }) => {
       }
     } catch (e) {
       console.error('Fetch Holidays Error:', e);
-      Alert.alert('Error', 'Failed to load holidays');
+      ToastService.show({ message: 'Failed to load holidays', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -50,44 +48,31 @@ export const CompHolidaysListScreen = ({ route, navigation }) => {
     }, [loadHolidays]),
   );
 
-  const handleDelete = holiday => {
-    Alert.alert(
-      'Confirm Delete',
-      `Are you sure you want to delete the holiday "${holiday.holiday_name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const resp = await deleteHoliday(
-                queueId,
-                holiday.queue_holiday_id,
-              );
-              if (resp && resp.found) {
-                Alert.alert(
-                  'Success',
-                  resp.message || 'Holiday deleted successfully',
-                );
-                loadHolidays();
-              } else {
-                Alert.alert(
-                  'Error',
-                  resp?.message || 'Failed to delete holiday',
-                );
-              }
-            } catch (e) {
-              console.error('Delete Holiday Error:', e);
-              Alert.alert('Error', 'An error occurred while deleting');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ],
-    );
+  const handleDelete = async holiday => {
+    setLoading(true);
+    try {
+      const resp = await deleteHoliday(queueId, holiday.queue_holiday_id);
+      if (resp && resp.found) {
+        ToastService.show({
+          message: resp.message || 'Holiday deleted successfully',
+          type: 'success',
+        });
+        loadHolidays();
+      } else {
+        ToastService.show({
+          message: resp?.message || 'Failed to delete holiday',
+          type: 'error',
+        });
+      }
+    } catch (e) {
+      console.error('Delete Holiday Error:', e);
+      ToastService.show({
+        message: 'An error occurred while deleting',
+        type: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatDate = dateString => {
@@ -138,7 +123,7 @@ export const CompHolidaysListScreen = ({ route, navigation }) => {
           onPress={() => handleDelete(item)}
           style={styles.deleteBtn}
         >
-          <MaterialIcons name="delete" size={24} color="#d32f2f" />
+          <MaterialIcons name="delete" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -170,13 +155,8 @@ export const CompHolidaysListScreen = ({ route, navigation }) => {
         <Text style={styles.subHeaderText}>{selectedQueueName}</Text>
       </View>
 
-      {loading && holidays.length === 0 ? (
-        <ActivityIndicator
-          size="large"
-          color={theme.colors.primary}
-          style={styles.loader}
-        />
-      ) : (
+      <Loader visible={loading && holidays.length === 0} />
+      {!loading && (
         <FlatList
           data={holidays}
           keyExtractor={item => item.queue_holiday_id.toString()}
@@ -184,7 +164,11 @@ export const CompHolidaysListScreen = ({ route, navigation }) => {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <MaterialIcons name="event-busy" size={64} color="#ddd" />
+              <MaterialIcons
+                name="event-busy"
+                size={64}
+                color={theme.colors.borderLight}
+              />
               <Text style={styles.emptyText}>No holidays found</Text>
               <TouchableOpacity
                 style={styles.addFirstBtn}
@@ -213,10 +197,10 @@ export const CompHolidaysListScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.background,
   },
   subHeader: {
-    backgroundColor: '#EAEAEA',
+    backgroundColor: theme.colors.backgroundLight,
     paddingVertical: 15,
     paddingHorizontal: 20,
     alignItems: 'center',
@@ -250,7 +234,7 @@ const styles = StyleSheet.create({
   },
   holidayDate: {
     fontSize: 14,
-    color: '#555',
+    color: theme.colors.iconDark,
   },
   rightInfo: {
     flexDirection: 'row',

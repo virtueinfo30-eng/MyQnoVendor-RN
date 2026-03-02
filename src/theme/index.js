@@ -19,6 +19,7 @@ const colors = {
   backgroundDark: '#424242',
   divider: '#EEEEEE',
   borderLight: '#eee',
+  blueLight: '#E3F2FD',
   textMuted: '#666',
   textLight: '#999',
   iconDark: '#333',
@@ -34,6 +35,10 @@ const colors = {
   info: '#3498db',
   green: '#27ae60',
   gold: '#FFD700',
+  overlayLightGray: 'rgba(230, 36, 48, 0.05)',
+  greenLight: '#e8f5e9',
+  redLight: '#ffebee',
+  red: '#aa333333',
 };
 
 export const theme = {

@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
@@ -13,6 +12,7 @@ import { fetchCompanyLocations } from '../../api/company';
 import { getSession } from '../../utils/session';
 import { theme } from '../../theme';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { Loader, ToastService } from '../../components/common';
 
 export const CompanyLocationScreen = ({ navigation }) => {
   const [locations, setLocations] = useState([]);
@@ -24,7 +24,7 @@ export const CompanyLocationScreen = ({ navigation }) => {
   useEffect(() => {
     loadLocations();
   }, []);
-  console.log('locations', locations);
+
   const loadLocations = async () => {
     try {
       const session = await getSession();
@@ -39,7 +39,6 @@ export const CompanyLocationScreen = ({ navigation }) => {
           session.logged_company_id,
           session.logged_mobile,
         );
-        console.log('data::::::', data);
         if (data && Array.isArray(data.locations)) {
           setLocations(data.locations);
           // Auto-push for single read-only location
@@ -76,6 +75,7 @@ export const CompanyLocationScreen = ({ navigation }) => {
       }
     } catch (e) {
       console.error(e);
+      ToastService.show({ message: 'Failed to load locations', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -86,7 +86,18 @@ export const CompanyLocationScreen = ({ navigation }) => {
     const canEdit = item.rw_mode === 'w' || item.rw_mode === 'W';
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => {
+          if (isActive) {
+            navigation.navigate('CompanyQueue', {
+              locationId: item.location_id || item.company_locations_id,
+              locationName: item.name,
+              location: item.location_name,
+            });
+          }
+        }}
+      >
         <View style={styles.infoContainer}>
           <Text style={styles.title}>{item.name}</Text>
           <Text style={styles.address} numberOfLines={2}>
@@ -158,7 +169,7 @@ export const CompanyLocationScreen = ({ navigation }) => {
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -182,11 +193,7 @@ export const CompanyLocationScreen = ({ navigation }) => {
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={theme.colors.primary}
-          style={styles.loader}
-        />
+        <Loader visible={loading} />
       ) : (
         <FlatList
           data={locations}

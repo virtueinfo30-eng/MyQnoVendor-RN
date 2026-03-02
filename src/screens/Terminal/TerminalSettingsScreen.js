@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Loader, ToastService } from '../../components/common';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CustomHeader } from '../../components/common/CustomHeader';
 import { theme } from '../../theme';
@@ -45,10 +39,11 @@ export const TerminalSettingsScreen = ({ navigation }) => {
       const isLoc = qId === '-1' || !qId;
 
       if (!locId && !qId) {
-        Alert.alert(
-          'Notice',
-          'Please select a location or queue as a display screen first.',
-        );
+        ToastService.show({
+          message:
+            'Please select a location or queue as a display screen first.',
+          type: 'warning',
+        });
         setLoading(false);
         return;
       }
@@ -86,7 +81,10 @@ export const TerminalSettingsScreen = ({ navigation }) => {
 
   const handleSave = async () => {
     if (!ids.locationId && !ids.queueId) {
-      Alert.alert('Notice', 'No display screen configured.');
+      ToastService.show({
+        message: 'No display screen configured.',
+        type: 'info',
+      });
       return;
     }
 
@@ -118,20 +116,24 @@ export const TerminalSettingsScreen = ({ navigation }) => {
       });
 
       if (response.data && response.data.type === 'SUCCESS') {
-        Alert.alert(
-          'Success',
-          response.data.message || 'Settings saved successfully',
-        );
+        ToastService.show({
+          message: response.data.message || 'Settings saved successfully',
+          type: 'success',
+          duration: 4000,
+        });
         navigation.replace('Terminal'); // Assuming Terminal defaults to display
       } else {
-        Alert.alert(
-          'Error',
-          response.data?.message || 'Failed to save settings',
-        );
+        ToastService.show({
+          message: response.data?.message || 'Failed to save settings',
+          type: 'error',
+        });
       }
     } catch (e) {
       console.error('Error saving terminal settings', e);
-      Alert.alert('Error', 'An error occurred while saving terminal settings');
+      ToastService.show({
+        message: 'An error occurred while saving terminal settings',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -149,7 +151,7 @@ export const TerminalSettingsScreen = ({ navigation }) => {
           <MaterialIcons
             name="remove"
             size={24}
-            color={value <= min ? '#CCC' : theme.colors.primary}
+            color={value <= min ? theme.colors.textLight : theme.colors.primary}
           />
         </TouchableOpacity>
         <Text style={styles.valueText}>{value}</Text>
@@ -161,7 +163,7 @@ export const TerminalSettingsScreen = ({ navigation }) => {
           <MaterialIcons
             name="add"
             size={24}
-            color={value >= max ? '#CCC' : theme.colors.primary}
+            color={value >= max ? theme.colors.textLight : theme.colors.primary}
           />
         </TouchableOpacity>
       </View>
@@ -177,7 +179,7 @@ export const TerminalSettingsScreen = ({ navigation }) => {
       />
       {loading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Loader visible={loading} />
         </View>
       ) : (
         <View style={styles.content}>
@@ -221,7 +223,7 @@ export const TerminalSettingsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F7F7',
+    backgroundColor: theme.colors.white,
   },
   loaderContainer: {
     flex: 1,

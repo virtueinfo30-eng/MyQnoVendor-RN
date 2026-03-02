@@ -4,13 +4,12 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  ActivityIndicator,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../theme';
 import { fetchPackageList, createInvoice } from '../api/wallet';
+import { Loader, ToastService } from './common';
 
 export const PackagesTabList = ({ packageType, onBalanceUpdate }) => {
   const navigation = useNavigation();
@@ -45,16 +44,23 @@ export const PackagesTabList = ({ packageType, onBalanceUpdate }) => {
         setLoading(true);
         const res = await createInvoice(pkg.package_id);
         if (res && res.found && res.type === 'Success') {
-          Alert.alert(
-            'Success',
-            res.message || 'Invoice created successfully.',
-          );
-          if (onBalanceUpdate) onBalanceUpdate(); // Refresh the top balance in WalletScreen
+          ToastService.show({
+            message: res.message || 'Invoice created successfully.',
+            type: 'success',
+            duration: 4000,
+          });
+          if (onBalanceUpdate) onBalanceUpdate();
         } else {
-          Alert.alert('Error', res?.message || 'Failed to create invoice.');
+          ToastService.show({
+            message: res?.message || 'Failed to create invoice.',
+            type: 'error',
+          });
         }
       } catch (e) {
-        Alert.alert('Error', 'An error occurred while creating invoice.');
+        ToastService.show({
+          message: 'An error occurred while creating invoice.',
+          type: 'error',
+        });
       } finally {
         setLoading(false);
       }
@@ -113,11 +119,7 @@ export const PackagesTabList = ({ packageType, onBalanceUpdate }) => {
   );
 
   if (loading) {
-    return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
+    return <Loader visible={loading} />;
   }
 
   return (

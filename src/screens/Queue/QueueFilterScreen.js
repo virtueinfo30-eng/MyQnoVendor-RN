@@ -126,7 +126,9 @@ export const QueueFilterScreen = ({ navigation, route }) => {
                     }
                     size={24}
                     color={
-                      tokenStatus === opt.value ? theme.colors.primary : theme.colors.textLight
+                      tokenStatus === opt.value
+                        ? theme.colors.primary
+                        : theme.colors.textLight
                     }
                   />
                   <Text
@@ -148,7 +150,11 @@ export const QueueFilterScreen = ({ navigation, route }) => {
                   style={styles.inputBox}
                   onPress={() => setShowFromDatePicker(true)}
                 >
-                  <MaterialIcons name="calendar-today" size={20} color={theme.colors.textLight} />
+                  <MaterialIcons
+                    name="calendar-today"
+                    size={20}
+                    color={theme.colors.textLight}
+                  />
                   <Text style={styles.inputText}>
                     {fromDate.toISOString().split('T')[0]}
                   </Text>
@@ -160,7 +166,11 @@ export const QueueFilterScreen = ({ navigation, route }) => {
                   style={styles.inputBox}
                   onPress={() => setShowToDatePicker(true)}
                 >
-                  <MaterialIcons name="calendar-today" size={20} color={theme.colors.textLight} />
+                  <MaterialIcons
+                    name="calendar-today"
+                    size={20}
+                    color={theme.colors.textLight}
+                  />
                   <Text style={styles.inputText}>
                     {toDate.toISOString().split('T')[0]}
                   </Text>
@@ -172,7 +182,11 @@ export const QueueFilterScreen = ({ navigation, route }) => {
               <View style={styles.inputCol}>
                 <Text style={styles.inputLabel}>From Token</Text>
                 <View style={styles.inputBox}>
-                  <MaterialIcons name="calendar-today" size={20} color={theme.colors.textLight} />
+                  <MaterialIcons
+                    name="calendar-today"
+                    size={20}
+                    color={theme.colors.textLight}
+                  />
                   <TextInput
                     style={styles.textInput}
                     placeholder="Token No."
@@ -186,7 +200,11 @@ export const QueueFilterScreen = ({ navigation, route }) => {
               <View style={styles.inputCol}>
                 <Text style={styles.inputLabel}>To Token</Text>
                 <View style={styles.inputBox}>
-                  <MaterialIcons name="calendar-today" size={20} color={theme.colors.textLight} />
+                  <MaterialIcons
+                    name="calendar-today"
+                    size={20}
+                    color={theme.colors.textLight}
+                  />
                   <TextInput
                     style={styles.textInput}
                     placeholder="Token No."
@@ -267,7 +285,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.m,
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#CCCCCC',
+    borderBottomColor: theme.colors.divider,
   },
   subHeaderText: {
     fontSize: theme.fontSize.small,

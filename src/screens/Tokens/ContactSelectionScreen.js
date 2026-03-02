@@ -7,16 +7,14 @@ import {
   TouchableOpacity,
   PermissionsAndroid,
   Platform,
-  Alert,
   TextInput,
-  ActivityIndicator,
 } from 'react-native';
 import Contacts from 'react-native-contacts';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { theme } from '../../theme';
 import { shareUserToken, importContacts } from '../../api/user_api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CustomHeader } from '../../components/common';
+import { CustomHeader, Loader, ToastService } from '../../components/common';
 
 export const ContactSelectionScreen = () => {
   const navigation = useNavigation();
@@ -50,7 +48,10 @@ export const ContactSelectionScreen = () => {
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
           fetchContacts();
         } else {
-          Alert.alert('Permission Denied', 'Cannot access contacts');
+          ToastService.show({
+            message: 'Cannot access contacts',
+            type: 'error',
+          });
           setLoading(false);
         }
       } catch (err) {
@@ -86,7 +87,7 @@ export const ContactSelectionScreen = () => {
     } catch (e) {
       console.log(e);
       setLoading(false);
-      Alert.alert('Error', 'Failed to load contacts');
+      ToastService.show({ message: 'Failed to load contacts', type: 'error' });
     }
   };
 
@@ -137,10 +138,10 @@ export const ContactSelectionScreen = () => {
 
   const handleShare = async () => {
     if (selectedContacts.length === 0) {
-      Alert.alert(
-        'Select Contacts',
-        'Please select at least one contact to share with.',
-      );
+      ToastService.show({
+        message: 'Please select at least one contact to share with.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -161,11 +162,14 @@ export const ContactSelectionScreen = () => {
     setSubmitting(false);
 
     if (result.success) {
-      Alert.alert('Success', 'Token shared successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      ToastService.show({
+        message: 'Token shared successfully!',
+        type: 'success',
+        duration: 4000,
+      });
+      navigation.goBack();
     } else {
-      Alert.alert('Error', result.message);
+      ToastService.show({ message: result.message, type: 'error' });
     }
   };
 
@@ -195,11 +199,7 @@ export const ContactSelectionScreen = () => {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
+    return <Loader visible={loading} message="Loading contacts…" />;
   }
 
   return (
@@ -238,12 +238,9 @@ export const ContactSelectionScreen = () => {
           onPress={handleShare}
           disabled={selectedContacts.length === 0 || submitting}
         >
-          {submitting ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.shareButtonText}>Share Token</Text>
-          )}
+          <Text style={styles.shareButtonText}>Share Token</Text>
         </TouchableOpacity>
+        <Loader visible={submitting} message="Sharing token…" />
       </View>
     </View>
   );
@@ -304,7 +301,7 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.border,
   },
   selectedItem: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: theme.colors.blueLight,
   },
   avatar: {
     width: 40,

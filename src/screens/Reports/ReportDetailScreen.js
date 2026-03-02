@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { CustomHeader } from '../../components/common';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { CustomHeader, Loader, ToastService } from '../../components/common';
 import { fetchTokensReport } from '../../api/reports';
 import { getSession } from '../../utils/session';
 import { theme } from '../../theme';
@@ -95,11 +88,14 @@ export const ReportDetailScreen = ({ navigation, route }) => {
       if (response.found) {
         setReports(response.reports || []);
       } else {
-        Alert.alert('Info', response.message || 'No reports found');
+        ToastService.show({
+          message: response.message || 'No reports found',
+          type: 'info',
+        });
       }
     } catch (error) {
       console.error('Load Reports Error:', error);
-      Alert.alert('Error', 'Failed to load reports');
+      ToastService.show({ message: 'Failed to load reports', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -114,9 +110,7 @@ export const ReportDetailScreen = ({ navigation, route }) => {
         onBackPress={() => navigation.goBack()}
       />
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-        </View>
+        <Loader visible={loading} />
       ) : (
         <FlatList
           data={reports}
@@ -137,7 +131,7 @@ export const ReportDetailScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.lightGray,
   },
   center: {
     flex: 1,
@@ -194,7 +188,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   subHeader: {
-    backgroundColor: '#F9F9F9',
+    backgroundColor: theme.colors.lightGray,
     padding: 5,
     marginBottom: 8,
     borderRadius: 4,

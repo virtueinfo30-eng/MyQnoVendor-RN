@@ -5,7 +5,6 @@ import {
   FlatList,
   TextInput,
   StyleSheet,
-  ActivityIndicator,
   Image,
   TouchableOpacity,
   Modal,
@@ -16,6 +15,7 @@ import { getSession } from '../../utils/session';
 import { theme } from '../../theme';
 import { API_CONFIG } from '../../api/config';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { Loader, ToastService } from '../../components/common';
 
 export const CompCustomersScreen = ({ navigation }) => {
   const [customers, setCustomers] = useState([]);
@@ -45,6 +45,7 @@ export const CompCustomersScreen = ({ navigation }) => {
       }
     } catch (e) {
       console.error(e);
+      ToastService.show({ message: 'An error occurred', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -101,11 +102,7 @@ export const CompCustomersScreen = ({ navigation }) => {
         />
       </View>
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={theme.colors.primary}
-          style={styles.loader}
-        />
+        <Loader visible={loading} />
       ) : (
         <FlatList
           data={customers}

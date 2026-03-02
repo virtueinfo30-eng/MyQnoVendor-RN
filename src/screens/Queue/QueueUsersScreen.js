@@ -4,12 +4,11 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { CustomHeader } from '../../components/common/CustomHeader';
+import { Loader, ToastService } from '../../components/common';
 import { theme } from '../../theme';
 import { fetchActivityGrid } from '../../api/company';
 import { getSession } from '../../utils/session';
@@ -36,7 +35,10 @@ export const QueueUsersScreen = ({ navigation, route }) => {
       }
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Failed to load users in queue');
+      ToastService.show({
+        message: 'Failed to load users in queue',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -55,15 +57,15 @@ export const QueueUsersScreen = ({ navigation, route }) => {
   const getStatusColor = status => {
     switch (status) {
       case 'B':
-        return '#2196F3'; // Called/Buzz
+        return theme.colors.blue; // Called/Buzz
       case 'I':
-        return '#4CAF50'; // Active
+        return theme.colors.success; // Active
       case 'A':
-        return '#FF9800'; // Arrived
+        return theme.colors.warning; // Arrived
       case 'N':
-        return '#F44336'; // Not Arrived
+        return theme.colors.error; // Not Arrived
       case 'C':
-        return '#757575'; // Cancelled
+        return theme.colors.textSecondary; // Cancelled
       default:
         return theme.colors.textSecondary;
     }
@@ -120,9 +122,7 @@ export const QueueUsersScreen = ({ navigation, route }) => {
       />
 
       {loading && !refreshing ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-        </View>
+        <Loader visible={loading} />
       ) : (
         <FlatList
           data={users}
