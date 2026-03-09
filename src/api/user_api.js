@@ -408,8 +408,13 @@ export const registerUser = async ({
 // --- Shared Tokens APIs ---
 export const fetchSharedTokens = async userId => {
   try {
-    const url = `${ENDPOINTS.FETCH_SHARED_TOKENS}/${userId}`;
-    const response = await apiClient.get(url);
+    const params = new URLSearchParams();
+    params.append('user_id', userId);
+
+    const response = await apiClient.post(
+      ENDPOINTS.FETCH_SHARED_TOKENS,
+      params.toString(),
+    );
     if (response.data && response.data.found) {
       return { success: true, data: response.data.listSharedTokenInfo || [] };
     }

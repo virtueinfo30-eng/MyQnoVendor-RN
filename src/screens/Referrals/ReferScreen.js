@@ -74,9 +74,9 @@ export const ReferScreen = ({ navigation }) => {
 
   const importContactsToServer = async contactsList => {
     try {
-      const userSession = await AsyncStorage.getItem('user_session');
-      if (!userSession) return;
-      const userData = JSON.parse(userSession);
+      const vendorSession = await AsyncStorage.getItem('vendor_session');
+      if (!vendorSession) return;
+      const userData = JSON.parse(vendorSession);
       const userId = userData.logged_user_id || userData.user_master_id;
       if (!userId) return;
 
@@ -119,15 +119,17 @@ export const ReferScreen = ({ navigation }) => {
     setLoading(true);
     const result = await referFriends(selectedContacts);
     setLoading(false);
-
-    if (result.success) {
+    console.log('✅ [ReferScreen] Refer result:', result);
+    if (result?.success) {
       ToastService.show({
         message: result.message,
         type: 'success',
         duration: 4000,
       });
       setSelectedContacts([]);
-      navigation.goBack();
+      // navigation.goBack();
+      ToastService.show({ message: result.message, type: 'success' });
+    } else {
       ToastService.show({ message: result.message, type: 'error' });
     }
   };
@@ -204,9 +206,8 @@ export const ReferScreen = ({ navigation }) => {
           <Text style={styles.referButtonText}>
             {loading
               ? 'Sending...'
-              : `Refer ${selectedContacts.length} Friend${
-                  selectedContacts.length > 1 ? 's' : ''
-                }`}
+              : `Refer ${selectedContacts.length} Friend${selectedContacts.length > 1 ? 's' : ''
+              }`}
           </Text>
         </TouchableOpacity>
       )}

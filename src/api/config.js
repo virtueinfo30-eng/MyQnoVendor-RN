@@ -56,8 +56,9 @@ export const ENDPOINTS = {
   SWAP_TOKEN: 'api/activity/swaptokens', // {company_id}/{request_token_id}/{steps}
   GET_SWAP_TOKEN_NUMBER: 'api/activity/getswaptokennumber', // {company_id}/{request_token_id}
   SET_ARRIVED: 'api/activity/setarrievd', // {comp_id} (Note: typo matches native endpoint)
-  SEND_NOTIFICATION: 'api/activity/sendnotification', // {company_id}
-  REISSUE_TOKEN: 'api/activity/reissuetoken',
+  SEND_NOTIFICATION: 'api/notification/sendnotification', // {company_id}
+  GET_LOCATION_USERS: 'api/activity/getownershreduserlatlong', // {comp_id}/{company_token_id}
+  REISSUE_TOKEN: 'api/queue/reissuetoken',
   ISSUE_MANUAL_TOKEN: 'api/queue/issuemanualtoken',
   GET_USER_BY_MOBILE: 'api/comcode/getuserfrommobile', // /{mobile_no}
 

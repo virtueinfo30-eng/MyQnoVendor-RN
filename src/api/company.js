@@ -131,12 +131,20 @@ export const fetchActivityGrid = async (
     formData.append('todate', options.todate || today);
     formData.append('token_status', options.token_status || '');
 
+    if (options.preBookingDays !== undefined) {
+      formData.append('pre_booking_days', options.preBookingDays);
+    }
+    if (options.totalRecords !== undefined) {
+      formData.append('txttotal_records', options.totalRecords);
+    }
+
     if (options.from_token) formData.append('from_token', options.from_token);
     if (options.to_token) formData.append('to_token', options.to_token);
 
     const response = await apiClient.post(ENDPOINTS.ACTIVITY_GRID, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    console.log("response", response.data);
     return response.data;
   } catch (error) {
     console.error('Fetch Activity Grid Error:', error);
@@ -152,6 +160,18 @@ export const fetchUsersInQueue = async userTokenId => {
     return response.data;
   } catch (error) {
     console.error('Fetch Users In Queue Error:', error);
+    throw error;
+  }
+};
+
+export const fetchUserLocation = async (companyId, companyTokenId) => {
+  try {
+    const response = await apiClient.get(
+      `${ENDPOINTS.GET_LOCATION_USERS}/${companyId}/${companyTokenId}`,
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Fetch User Location Error:', error);
     throw error;
   }
 };
@@ -172,15 +192,23 @@ export const setTokenArrivedStatus = async (companyId, data) => {
   }
 };
 
-export const swapToken = async (companyId, token1, token2) => {
+export const fetchSwapTokenNumber = async (companyId, companyTokenId) => {
   try {
-    const formData = new FormData();
-    formData.append('company_id', companyId);
-    formData.append('request_token_id', token1);
-    formData.append('swap_token_id', token2);
-    const response = await apiClient.post(ENDPOINTS.SWAP_TOKEN, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.get(
+      `${ENDPOINTS.GET_SWAP_TOKEN_NUMBER}/${companyId}/${companyTokenId}`,
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Fetch Swap Token Number Error:', error);
+    throw error;
+  }
+};
+
+export const swapToken = async (companyId, requestTokenId, steps) => {
+  try {
+    const response = await apiClient.get(
+      `${ENDPOINTS.SWAP_TOKEN}/${companyId}/${requestTokenId}/${steps}`,
+    );
     return response.data;
   } catch (error) {
     console.error('Swap Token Error:', error);

@@ -32,9 +32,9 @@ export const SharedTokensScreen = () => {
 
   const loadSession = async () => {
     try {
-      const userSession = await AsyncStorage.getItem('user_session');
-      if (userSession) {
-        const userData = JSON.parse(userSession);
+      const vendorSession = await AsyncStorage.getItem('vendor_session');
+      if (vendorSession) {
+        const userData = JSON.parse(vendorSession);
         setUserId(userData.user_master_id || userData.logged_user_id || '');
       }
     } catch (e) {

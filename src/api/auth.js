@@ -97,6 +97,25 @@ export const getCitiesList = async stateId => {
   }
 };
 
+export const checkDuplicateMobile = async (
+  mobileno,
+  dupefor, // 'C' for company, 'U' for user
+  ctry_id = '0',
+  comp_id = '0',
+  comp_loca_id = '0',
+  que_id = '0'
+) => {
+  try {
+    const response = await apiClient.get(
+      `${ENDPOINTS.CHECK_DUPLICATE_MOBILE}/${mobileno}/${dupefor}/${ctry_id}/${comp_id}/${comp_loca_id}/${que_id}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Check Duplicate Mobile Error:', error);
+    return { code: "0", message: error.message };
+  }
+};
+
 export const getCompanyCategories = async () => {
   try {
     const response = await apiClient.get(

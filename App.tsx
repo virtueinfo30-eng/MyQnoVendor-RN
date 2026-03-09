@@ -6,6 +6,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { StatusBar } from 'react-native';
 import { notificationService } from './src/services/NotificationService';
 import { theme } from './src/theme';
+import { CustomToast, ToastService } from './src/components/common';
 
 const App = () => {
   useEffect(() => {
@@ -21,6 +22,7 @@ const App = () => {
       <NavigationContainer>
         <RootNavigator />
       </NavigationContainer>
+      <CustomToast ref={ToastService.toastRef} />
     </SafeAreaProvider>
   );
 };

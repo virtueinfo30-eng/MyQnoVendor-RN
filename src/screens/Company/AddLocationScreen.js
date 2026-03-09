@@ -21,7 +21,8 @@ import {
 } from '../../api/company';
 import apiClient from '../../api/client';
 import { ENDPOINTS } from '../../api/config';
-import { getSession, saveTerminalDisplayIds } from '../../utils/session';
+import { getSession, getTerminalDisplayIds, saveTerminalDisplayIds } from '../../utils/session';
+import { checkDuplicateMobile } from '../../api/auth';
 import Geolocation from 'react-native-geolocation-service';
 import { PermissionsAndroid } from 'react-native';
 
@@ -30,12 +31,28 @@ export const AddLocationScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [isDisplayScreen, setIsDisplayScreen] = useState(false);
 
+  useEffect(() => {
+    const checkDisplayScreen = async () => {
+      const { locationId } = await getTerminalDisplayIds();
+      const currentLocId =
+        route.params?.location?.company_locations_id ||
+        route.params?.location?.location_id;
+      if (locationId && currentLocId && String(locationId) === String(currentLocId)) {
+        setIsDisplayScreen(true);
+      }
+    };
+    checkDisplayScreen();
+  }, [route.params?.location]);
+
   // OTP verification state
   const [otpDialogVisible, setOtpDialogVisible] = useState(false);
   const [otpValue, setOtpValue] = useState('');
   const [serverOtp, setServerOtp] = useState('');
   const [mobileVerified, setMobileVerified] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
+
+  const [mobileError, setMobileError] = useState('');
+  const [mobileSuccess, setMobileSuccess] = useState('');
 
   const [formData, setFormData] = useState({
     location_name: '',
@@ -44,7 +61,7 @@ export const AddLocationScreen = ({ navigation, route }) => {
     email: '',
     cmb_country: '101', // Default India
     cmb_state: '12', // Default state
-    cmb_city: '',
+    cmb_city: '783',
     country_name: 'India',
     state_name: 'Gujarat',
     city_name: 'Ahmedabad',
@@ -176,6 +193,45 @@ export const AddLocationScreen = ({ navigation, route }) => {
     return false;
   };
 
+  const handleMobileBlur = async () => {
+    const mobile = formData.mobile?.trim();
+    if (!mobile) {
+      setMobileError('');
+      setMobileSuccess('');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const session = await getSession();
+      const companyId = session.logged_company_id;
+      const ctryId = formData.cmb_country || '101';
+      const locId = isEdit ? route.params?.location?.company_locations_id || '-1' : '-1';
+
+      const result = await checkDuplicateMobile(
+        mobile,
+        'L',
+        ctryId,
+        companyId,
+        locId,
+        '-1'
+      );
+
+      if (result && String(result.code) === '1') {
+        setMobileError(result.message || 'Mobile number already in use');
+        setMobileSuccess('');
+      } else if (result && String(result.code) !== '1') {
+        setMobileError('');
+        const msg = result.message ? result.message.replace('OK', '').trim() : '';
+        setMobileSuccess(msg);
+      }
+    } catch (e) {
+      console.log('Error checking duplicate mobile:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Step 1: Check if mobile is duplicate
   const handleVerifyMobile = async () => {
     const mobile = formData.mobile.trim();
@@ -271,6 +327,28 @@ export const AddLocationScreen = ({ navigation, route }) => {
     }
   };
 
+  const toggleDisplayScreen = async () => {
+    const nextState = !isDisplayScreen;
+    setIsDisplayScreen(nextState);
+
+    if (nextState) {
+      const locId =
+        route.params?.location?.company_locations_id ||
+        route.params?.location?.location_id;
+      await saveTerminalDisplayIds(locId, '-1');
+      ToastService.show({
+        message: 'This device set as location display screen',
+        type: 'success',
+      });
+    } else {
+      await saveTerminalDisplayIds('', '');
+      ToastService.show({
+        message: 'Display screen setting removed',
+        type: 'info',
+      });
+    }
+  };
+
   const handleSetLocation = async () => {
     setLoading(true);
     const hasPermission = await requestLocationPermission();
@@ -287,16 +365,28 @@ export const AddLocationScreen = ({ navigation, route }) => {
     Geolocation.getCurrentPosition(
       async position => {
         const { latitude, longitude } = position.coords;
-        let address = formData.address;
-
+        let fetchedAddress = '';
         try {
-          // Attempt reverse geocoding via Nominatim API since we don't have a reliable mapping SDK built-in
+          // Nominatim requires a User-Agent header
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+            {
+              headers: {
+                'User-Agent': 'MyQnoVendorApp/1.0',
+              },
+            },
           );
-          const json = await res.json();
-          if (json && json.display_name) {
-            address = json.display_name;
+
+          if (res.ok) {
+            const json = await res.json();
+            console.log('Geocoding result:', json);
+            if (json && json.display_name) {
+              fetchedAddress = json.display_name.trim();
+            }
+          } else {
+            console.warn('Geocoding API error:', res.status);
+            const errorText = await res.text();
+            console.log('Error body:', errorText);
           }
         } catch (e) {
           console.warn('Reverse geocoding failed', e);
@@ -306,8 +396,9 @@ export const AddLocationScreen = ({ navigation, route }) => {
           ...prev,
           latitude: String(latitude),
           longitude: String(longitude),
-          address: address, // update address
+          address: fetchedAddress || prev.address, // fallback to existing address if fetch fails
         }));
+
         ToastService.show({
           message: 'Coordinates and address fetched successfully.',
           type: 'success',
@@ -335,6 +426,11 @@ export const AddLocationScreen = ({ navigation, route }) => {
       return;
     }
 
+    if (mobileError) {
+      ToastService.show({ message: mobileError, type: 'warning' });
+      return;
+    }
+
     setLoading(true);
     try {
       const session = await getSession();
@@ -349,7 +445,7 @@ export const AddLocationScreen = ({ navigation, route }) => {
         data.append(
           'comp_location',
           route.params?.location?.company_locations_id ||
-            route.params?.location?.location_id,
+          route.params?.location?.location_id,
         );
       } else {
         data.append('comp_location', '-1');
@@ -368,7 +464,7 @@ export const AddLocationScreen = ({ navigation, route }) => {
       if (response.data && response.data.type === 'SUCCESS') {
         const locationIdToSave = isEdit
           ? route.params?.location?.company_locations_id ||
-            route.params?.location?.location_id
+          route.params?.location?.location_id
           : response.data?.location_id; // Assuming API returns this on insert
 
         if (isDisplayScreen) {
@@ -412,6 +508,9 @@ export const AddLocationScreen = ({ navigation, route }) => {
         title={isEdit ? 'Update Location' : 'Add Location'}
         showBackIcon={true}
         navigation={navigation}
+        showRightIcon={isEdit}
+        rightIconName={isDisplayScreen ? 'grid-on' : 'grid-off'}
+        rightIconPress={toggleDisplayScreen}
       />
       {loading && <Loader visible={loading} />}
       <ScrollView contentContainerStyle={styles.content}>
@@ -514,7 +613,7 @@ export const AddLocationScreen = ({ navigation, route }) => {
             style={styles.leftIcon}
           />
           <TextInput
-            style={[styles.input, { minHeight: 60, marginTop: -4 }]}
+            style={[styles.input, { textAlignVertical: 'top', paddingVertical: -8 }]}
             value={formData.address}
             onChangeText={text => setFormData({ ...formData, address: text })}
             placeholder="Address"
@@ -537,7 +636,10 @@ export const AddLocationScreen = ({ navigation, route }) => {
             onChangeText={text => {
               setFormData({ ...formData, mobile: text });
               setMobileVerified(false);
+              if (mobileError) setMobileError('');
+              if (mobileSuccess) setMobileSuccess('');
             }}
+            onBlur={handleMobileBlur}
             placeholder="Mobile Number"
             placeholderTextColor={theme.colors.iconLight}
             keyboardType="phone-pad"
@@ -559,6 +661,15 @@ export const AddLocationScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           )}
         </View>
+        {mobileError ? (
+          <Text style={{ color: theme.colors.error, fontSize: 12, marginTop: 4, marginBottom: 10 }}>
+            {mobileError}
+          </Text>
+        ) : mobileSuccess ? (
+          <Text style={{ color: theme.colors.success, fontSize: 12, marginTop: 4, marginBottom: 10 }}>
+            {mobileSuccess}
+          </Text>
+        ) : <View style={{ height: 14 }} />}
 
         <Text style={styles.label}>Email ID</Text>
         <View style={styles.inputContainer}>
@@ -778,12 +889,12 @@ export const AddLocationScreen = ({ navigation, route }) => {
                   {(pickerType === 'state'
                     ? formData.cmb_state === item.id
                     : formData.cmb_city === item.id) && (
-                    <MaterialIcons
-                      name="check"
-                      size={20}
-                      color={theme.colors.primary}
-                    />
-                  )}
+                      <MaterialIcons
+                        name="check"
+                        size={20}
+                        color={theme.colors.primary}
+                      />
+                    )}
                 </TouchableOpacity>
               )}
               ListEmptyComponent={

@@ -16,11 +16,12 @@ import { theme } from '../theme';
 import { ToastService, Loader } from './common';
 import { fetchMyTokens, cancelToken, addFeedback } from '../api/user_api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { getCurrentLocation } from '../utils/location';
 
 export const MyTokensTab = ({ loading, setLoading }) => {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const [tokens, setTokens] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState('');
@@ -52,7 +53,7 @@ export const MyTokensTab = ({ loading, setLoading }) => {
   }, []);
 
   useEffect(() => {
-    if (userId) {
+    if (userId && isFocused) {
       loadTokens();
       // Auto-refresh every 30 seconds, matching native Android TimeManager
       const interval = setInterval(() => {
@@ -60,14 +61,14 @@ export const MyTokensTab = ({ loading, setLoading }) => {
       }, 30000);
       return () => clearInterval(interval);
     }
-  }, [userId]);
+  }, [userId, isFocused]);
 
   const loadUserId = async () => {
     try {
-      const userSession = await AsyncStorage.getItem('user_session');
-      if (userSession) {
-        const userData = JSON.parse(userSession);
-        console.log('User session data:', userData);
+      const vendorSession = await AsyncStorage.getItem('vendor_session');
+      if (vendorSession) {
+        const userData = JSON.parse(vendorSession);
+        console.log('Vendor session data:', userData);
         const id = userData.user_master_id || userData.logged_user_id || '';
         console.log('Using user ID:', id);
         setUserId(id);
@@ -121,9 +122,9 @@ export const MyTokensTab = ({ loading, setLoading }) => {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLng / 2) *
-        Math.sin(dLng / 2);
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const d = R * c;
     return d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;

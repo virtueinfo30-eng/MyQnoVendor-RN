@@ -60,6 +60,33 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   response => {
     console.log(`✅ [Response] ${response.status} from ${response.config.url}`);
+
+    // Clean up responses that have PHP warnings prepended to the JSON
+    if (typeof response.data === 'string') {
+      try {
+        const str = response.data;
+        // Find the first occurrence of '{' or '[' that looks like the start of a valid JSON object/array
+        const match = str.match(/(\{|\[)[\s\S]*(\}|\])/);
+        if (match) {
+          // We might have grabbed HTML at the end, so let's try to parse
+          // Or simpler: match starting brace until the last corresponding brace.
+          // Since JSON is at the end of the string, it usually ends with } or ]
+          // Let's use lastIndexOf for the *same* closing character as the starting match.
+          const startIndex = match.index;
+          const startChar = str[startIndex];
+          const endChar = startChar === '{' ? '}' : ']';
+          const endIndex = str.lastIndexOf(endChar);
+
+          if (endIndex > startIndex) {
+            const jsonStr = str.substring(startIndex, endIndex + 1);
+            response.data = JSON.parse(jsonStr);
+          }
+        }
+      } catch (e) {
+        // Ignore parsing errors and keep response.data as is
+      }
+    }
+
     return response;
   },
   error => {

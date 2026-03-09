@@ -9,6 +9,8 @@ import {
   Animated,
   Dimensions,
   Image,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import Slider from '@react-native-community/slider';
@@ -16,8 +18,9 @@ import { theme } from '../../theme';
 import { getCompanyCategories } from '../../api/auth';
 import { searchCompanies } from '../../api/user_api';
 import { useNavigation } from '@react-navigation/native';
-import { CustomHeader, Loader } from '../../components/common';
+import { CustomHeader, Loader, ToastService } from '../../components/common';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import Geolocation from 'react-native-geolocation-service';
 
 const { width } = Dimensions.get('window');
 
@@ -38,10 +41,11 @@ export const SearchScreen = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Mock location
-  const [latitude] = useState('23.0225');
-  const [longitude] = useState('72.5714');
-  const [locationName] = useState('Current Location');
+  // Location
+  const [latitude, setLatitude] = useState('23.0225');
+  const [longitude, setLongitude] = useState('72.5714');
+  const [locationName, setLocationName] = useState('Current Location');
+  const [locationLoading, setLocationLoading] = useState(false);
 
   // Animation
   const animatedHeight = useRef(new Animated.Value(0)).current;
@@ -103,6 +107,76 @@ export const SearchScreen = () => {
       if (searchText || selectedCategoryId) {
         ToastService.show({ message: result.message, type: 'info' });
       }
+    }
+  };
+
+  const requestLocationPermission = async () => {
+    if (Platform.OS === 'ios') {
+      const auth = await Geolocation.requestAuthorization('whenInUse');
+      return auth === 'granted';
+    }
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    }
+    return false;
+  };
+
+  const handleGetCurrentLocation = async () => {
+    setLocationLoading(true);
+    const hasPermission = await requestLocationPermission();
+    if (!hasPermission) {
+      ToastService.show({
+        message: 'Location permission is required',
+        type: 'error',
+      });
+      setLocationLoading(false);
+      return;
+    }
+
+    Geolocation.getCurrentPosition(
+      position => {
+        const { latitude: lat, longitude: lng } = position.coords;
+        setLatitude(String(lat));
+        setLongitude(String(lng));
+        setLocationName('Current Location');
+        setLocationLoading(false);
+        // Immediately trigger a new search with fresh coordinates
+        performSearchWithCoords(String(lat), String(lng));
+      },
+      error => {
+        console.error('Location Error', error);
+        ToastService.show({
+          message: `Failed to get location: ${error.message}`,
+          type: 'error',
+        });
+        setLocationLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+    );
+  };
+
+  const performSearchWithCoords = async (lat, lng) => {
+    setLoading(true);
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
+    const searchParams = {
+      category: selectedCategoryId || '',
+      latitude: lat,
+      longitude: lng,
+      searchText,
+      distance: distance.toString(),
+      date: dateStr,
+      persons: selectedPersons,
+    };
+    const result = await searchCompanies(searchParams);
+    setLoading(false);
+    if (result.success) {
+      setResults(result.data);
+    } else {
+      setResults([]);
     }
   };
 
@@ -189,8 +263,16 @@ export const SearchScreen = () => {
       />
       {/* Location Header */}
       <View style={styles.locationHeader}>
-        <TouchableOpacity style={styles.gpsIcon}>
-          <Icon name="my-location" size={24} color={theme.colors.white} />
+        <TouchableOpacity
+          style={styles.gpsIcon}
+          onPress={handleGetCurrentLocation}
+          disabled={locationLoading}
+        >
+          <Icon
+            name={locationLoading ? 'location-searching' : 'my-location'}
+            size={24}
+            color={theme.colors.white}
+          />
         </TouchableOpacity>
         <View style={styles.locationTextContainer}>
           <Icon name="location-on" size={24} color={theme.colors.white} />

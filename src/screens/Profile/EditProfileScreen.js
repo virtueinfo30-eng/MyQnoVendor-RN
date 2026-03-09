@@ -22,7 +22,7 @@ import {
   fetchCompanyCategories,
 } from '../../api/company';
 import { fetchUserProfile, updateUserProfile } from '../../api/user_api';
-import { getCountriesList, getStatesList, getCitiesList } from '../../api/auth';
+import { getCountriesList, getStatesList, getCitiesList, checkDuplicateMobile } from '../../api/auth';
 import { getSession } from '../../utils/session';
 import { API_CONFIG } from '../../api/config';
 
@@ -38,7 +38,9 @@ export const EditProfileScreen = ({ navigation }) => {
   const [showBankDetails, setShowBankDetails] = useState(false);
   const [chequeImage, setChequeImage] = useState(null);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
-
+  const [mobileError, setMobileError] = useState('');
+  const [mobileSuccess, setMobileSuccess] = useState('');
+  console.log('loading', loading);
   const [form, setForm] = useState({
     comp_name: '',
     first_name: '',
@@ -230,21 +232,110 @@ export const EditProfileScreen = ({ navigation }) => {
       setLoading(false);
     }
   };
-  const handleUpdate = async () => {
-    const isPersonal = isUserProfile;
-    if (!isPersonal && !form.comp_name) {
-      ToastService.show({
-        message: 'Please enter company name',
-        type: 'warning',
-      });
+
+  const handleMobileBlur = async () => {
+    if (!form.mobile_number) {
+      setMobileError('');
+      setMobileSuccess('');
       return;
     }
-    if (!form.first_name || !form.last_name || !form.mobile_number) {
-      ToastService.show({
-        message: 'Please fill all required fields',
-        type: 'warning',
-      });
+
+    if (form.mobile_number === user?.logged_mobile) {
+      setMobileError('');
+      setMobileSuccess('');
       return;
+    }
+
+    setLoading(true);
+    try {
+      const isVendor = !isUserProfile;
+      const dupefor = isVendor ? 'C' : 'U';
+      const ctry_id = form.cmb_country || '0';
+      const comp_id = isVendor ? user?.logged_company_id || '0' : '0';
+
+      const result = await checkDuplicateMobile(
+        form.mobile_number,
+        dupefor,
+        ctry_id,
+        comp_id
+      );
+
+      if (result && String(result.code) === '1') {
+        setMobileError(result.message || 'Mobile number already registered');
+        setMobileSuccess('');
+      } else if (result && String(result.code) !== '1') {
+        setMobileError('');
+        const msg = result.message ? result.message.replace('OK', '').trim() : '';
+        setMobileSuccess(msg);
+      }
+    } catch (e) {
+      console.log('Error checking mobile duplicate:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleUpdate = async () => {
+    const isPersonal = isUserProfile;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!isPersonal) {
+      if (!form.comp_name) {
+        ToastService.show({ message: 'Please enter company name', type: 'warning' });
+        return;
+      }
+      if (!form.comp_cat) {
+        ToastService.show({ message: 'Please select category', type: 'warning' });
+        return;
+      }
+      if (!form.first_name) {
+        ToastService.show({ message: 'Please enter first name', type: 'warning' });
+        return;
+      }
+      if (!form.last_name) {
+        ToastService.show({ message: 'Please enter last name', type: 'warning' });
+        return;
+      }
+      if (!form.mobile_number) {
+        ToastService.show({ message: 'Please enter mobile number', type: 'warning' });
+        return;
+      }
+      if (mobileError) {
+        ToastService.show({ message: mobileError, type: 'warning' });
+        return;
+      }
+      if (!form.email_id || !emailRegex.test(form.email_id)) {
+        ToastService.show({ message: 'Please enter valid email', type: 'warning' });
+        return;
+      }
+    } else {
+      if (!form.first_name) {
+        ToastService.show({ message: 'Please enter first name', type: 'warning' });
+        return;
+      }
+      if (!form.last_name) {
+        ToastService.show({ message: 'Please enter last name', type: 'warning' });
+        return;
+      }
+      if (!form.mobile_number) {
+        ToastService.show({ message: 'Please enter mobile number', type: 'warning' });
+        return;
+      }
+      if (mobileError) {
+        ToastService.show({ message: mobileError, type: 'warning' });
+        return;
+      }
+      if (!form.invoice_state_id) {
+        ToastService.show({ message: 'Please enter state', type: 'warning' });
+        return;
+      }
+      if (!form.invoice_city_id) {
+        ToastService.show({ message: 'Please enter city', type: 'warning' });
+        return;
+      }
+      if (!form.birth_date) {
+        ToastService.show({ message: 'Please enter date of birth', type: 'warning' });
+        return;
+      }
     }
 
     setLoading(true);
@@ -515,6 +606,83 @@ export const EditProfileScreen = ({ navigation }) => {
               placeholder="Enter Last Name"
             />
           </View>
+          <Text style={styles.label}>
+            {isUserProfile ? 'Mobile Number' : 'Owner Mobile Number'}
+          </Text>
+          <View style={styles.inputContainer}>
+            <MaterialIcons
+              name="smartphone"
+              size={24}
+              color={theme.colors.iconLight}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={[
+                styles.textInput,
+                isUserProfile && { color: theme.colors.iconGray },
+              ]}
+              value={form.mobile_number}
+              keyboardType="phone-pad"
+              editable={!isUserProfile} // Matches native ProfileUserFragment behavior
+              onChangeText={text => {
+                setForm(prev => ({ ...prev, mobile_number: text }));
+                if (mobileError) setMobileError('');
+                if (mobileSuccess) setMobileSuccess('');
+              }}
+              onBlur={handleMobileBlur}
+              placeholder="Enter Mobile Number"
+            />
+          </View>
+          {mobileError ? (
+            <Text style={{ color: theme.colors.error, fontSize: 12, marginTop: -10, marginBottom: 10 }}>
+              {mobileError}
+            </Text>
+          ) : mobileSuccess ? (
+            <Text style={{ color: theme.colors.success, fontSize: 12, marginTop: -10, marginBottom: 10 }}>
+              {mobileSuccess}
+            </Text>
+          ) : null}
+
+          <Text style={styles.label}>Email ID</Text>
+          <View style={styles.inputContainer}>
+            <MaterialIcons
+              name="mail-outline"
+              size={24}
+              color={theme.colors.iconLight}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={[
+                styles.textInput,
+                isUserProfile && { color: theme.colors.iconGray },
+              ]}
+              value={form.email_id}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!isUserProfile}
+              onChangeText={text =>
+                setForm(prev => ({ ...prev, email_id: text }))
+              }
+              placeholder="Enter Email ID"
+            />
+          </View>
+          <Text style={styles.label}>Address</Text>
+          <View style={styles.inputContainer}>
+            <MaterialIcons
+              name="location-on"
+              size={24}
+              color={theme.colors.iconLight}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.textInput}
+              value={form.address}
+              placeholder="Enter Address"
+              onChangeText={text =>
+                setForm(prev => ({ ...prev, address: text }))
+              }
+            />
+          </View>
 
           <Text style={styles.label}>Country</Text>
           <TouchableOpacity
@@ -582,54 +750,6 @@ export const EditProfileScreen = ({ navigation }) => {
             />
           </TouchableOpacity>
 
-          <Text style={styles.label}>
-            {isUserProfile ? 'Mobile Number' : 'Owner Mobile Number'}
-          </Text>
-          <View style={styles.inputContainer}>
-            <MaterialIcons
-              name="smartphone"
-              size={24}
-              color={theme.colors.iconLight}
-              style={styles.inputIcon}
-            />
-            <TextInput
-              style={[
-                styles.textInput,
-                isUserProfile && { color: theme.colors.iconGray },
-              ]}
-              value={form.mobile_number}
-              keyboardType="phone-pad"
-              editable={!isUserProfile} // Matches native ProfileUserFragment behavior
-              onChangeText={text =>
-                setForm(prev => ({ ...prev, mobile_number: text }))
-              }
-              placeholder="Enter Mobile Number"
-            />
-          </View>
-
-          <Text style={styles.label}>Email ID</Text>
-          <View style={styles.inputContainer}>
-            <MaterialIcons
-              name="mail-outline"
-              size={24}
-              color={theme.colors.iconLight}
-              style={styles.inputIcon}
-            />
-            <TextInput
-              style={[
-                styles.textInput,
-                isUserProfile && { color: theme.colors.iconGray },
-              ]}
-              value={form.email_id}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!isUserProfile}
-              onChangeText={text =>
-                setForm(prev => ({ ...prev, email_id: text }))
-              }
-              placeholder="Enter Email ID"
-            />
-          </View>
 
           {isUserProfile && (
             <>
@@ -667,23 +787,6 @@ export const EditProfileScreen = ({ navigation }) => {
             </>
           )}
 
-          <Text style={styles.label}>Address</Text>
-          <View style={styles.inputContainer}>
-            <MaterialIcons
-              name="location-on"
-              size={24}
-              color={theme.colors.iconLight}
-              style={styles.inputIcon}
-            />
-            <TextInput
-              style={styles.textInput}
-              value={form.address}
-              placeholder="Enter Address"
-              onChangeText={text =>
-                setForm(prev => ({ ...prev, address: text }))
-              }
-            />
-          </View>
 
           {!isUserProfile && (
             <>
@@ -1061,7 +1164,7 @@ const styles = StyleSheet.create({
     color: theme.colors.iconDark,
   },
   saveButton: {
-    backgroundColor: theme.colors.red, // Specific red from screenshot
+    backgroundColor: theme.colors.primary, // Specific red from screenshot
     height: 50,
     borderRadius: 4,
     justifyContent: 'center',

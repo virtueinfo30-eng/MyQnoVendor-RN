@@ -78,6 +78,7 @@ export const CompanyQueueScreen = ({ navigation, route }) => {
               qMobile: item.reg_mobile,
               qSTime: item.start_time,
               qETime: item.end_time,
+              preBookingDays: item.pre_booking_days,
             });
           }
         } else if (Array.isArray(data)) {
@@ -109,6 +110,7 @@ export const CompanyQueueScreen = ({ navigation, route }) => {
             qMobile: item.reg_mobile,
             qSTime: item.start_time,
             qETime: item.end_time,
+            preBookingDays: item.pre_booking_days,
           })
         }
       >
@@ -151,6 +153,7 @@ export const CompanyQueueScreen = ({ navigation, route }) => {
               qMobile: item.reg_mobile,
               qSTime: item.start_time,
               qETime: item.end_time,
+              preBookingDays: item.pre_booking_days,
             })
           }
         >

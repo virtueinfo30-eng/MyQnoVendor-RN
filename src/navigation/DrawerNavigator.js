@@ -16,7 +16,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { theme } from '../theme';
-import { getSession, clearSession } from '../utils/session';
+import { getSession, clearSession, getTerminalDisplayIds } from '../utils/session';
 import {
   CompanyLocationScreen,
   VendorInvoiceListScreen,
@@ -102,6 +102,7 @@ const DrawerItem = ({
 const CustomDrawerContent = props => {
   const [user, setUser] = useState(null);
   const [terminalModalVisible, setTerminalModalVisible] = useState(false);
+  const [terminalNotConfiguredVisible, setTerminalNotConfiguredVisible] = useState(false);
   const [supportModalVisible, setSupportModalVisible] = useState(false);
   const [supportInfo, setSupportInfo] = useState({ mobile: '', skype: '' });
   const [isLoading, setIsLoading] = useState(false);
@@ -183,10 +184,10 @@ const CustomDrawerContent = props => {
   const userImage =
     user?.profile_pic || user?.company_logo || user?.user_pic
       ? {
-          uri:
-            BASE_URL +
-            (user?.profile_pic || user?.company_logo || user?.user_pic),
-        }
+        uri:
+          BASE_URL +
+          (user?.profile_pic || user?.company_logo || user?.user_pic),
+      }
       : require('../assets/images/ic_logo.png');
 
   return (
@@ -217,12 +218,12 @@ const CustomDrawerContent = props => {
               {user?.logged_user_type?.toLowerCase() === 'u'
                 ? 'User'
                 : user?.logged_user_type?.toLowerCase() === 'c'
-                ? 'Company User'
-                : user?.logged_user_type?.toLowerCase() === 'q'
-                ? 'Queue User'
-                : user?.logged_user_type?.toLowerCase() === 'l'
-                ? 'Location User'
-                : 'User'}
+                  ? 'Company User'
+                  : user?.logged_user_type?.toLowerCase() === 'q'
+                    ? 'Queue User'
+                    : user?.logged_user_type?.toLowerCase() === 'l'
+                      ? 'Location User'
+                      : 'User'}
             </Text>
           </View>
           <MaterialIcons
@@ -279,9 +280,15 @@ const CustomDrawerContent = props => {
             label="Terminal"
             icon="th-large"
             Component={FontAwesome}
-            onPress={() => {
+            onPress={async () => {
               props.navigation.closeDrawer();
-              setTerminalModalVisible(true);
+              // Check if terminal is configured before showing options
+              const ids = await getTerminalDisplayIds();
+              if (ids.locationId || ids.queueId) {
+                setTerminalModalVisible(true);
+              } else {
+                setTerminalNotConfiguredVisible(true);
+              }
             }}
             active={currentRouteName === 'Terminal'}
           />
@@ -471,6 +478,37 @@ const CustomDrawerContent = props => {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Terminal Not Configured Warning Dialog */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={terminalNotConfiguredVisible}
+        onRequestClose={() => setTerminalNotConfiguredVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { paddingTop: theme.spacing.xl }]}>
+            <MaterialIcons
+              name="warning"
+              size={48}
+              color="#E5A623"
+              style={{ marginBottom: theme.spacing.m }}
+            />
+            <Text style={styles.modalTitle}>Setup Terminal</Text>
+            <Text style={[styles.modalSubtitle, { marginBottom: theme.spacing.xl }]}>
+              Setup Terminal for location or queue by selecting terminal icon on
+              location or queue detail screen.
+            </Text>
+            <View style={styles.modalDivider} />
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setTerminalNotConfiguredVisible(false)}
+            >
+              <Text style={styles.modalButtonTextBlue}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
 
       {/* Support Dialog */}

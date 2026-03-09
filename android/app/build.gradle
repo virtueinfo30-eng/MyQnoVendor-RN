@@ -39,7 +39,9 @@ react {
     //   A list containing the node command and its flags. Default is just 'node'.
     //   Use absolute path to node so Gradle can find it even when nvm manages node
     //   and /usr/local/bin is not in the JVM process PATH.
-    nodeExecutableAndArgs = ["/Users/tarang/.nvm/versions/node/v22.14.0/bin/node"]
+    // nodeExecutableAndArgs = ["/Users/tarang/.nvm/versions/node/v22.14.0/bin/node"]
+    nodeExecutableAndArgs = ["/Users/mac/.nvm/versions/node/v22.14.0/bin/node"]
+
     //
     //   The command to run when bundling. By default is 'bundle'
     // bundleCommand = "ram-bundle"

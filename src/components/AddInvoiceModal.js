@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Modal,
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  Platform,
+  Animated,
+  Dimensions,
+  ScrollView,
 } from 'react-native';
 import {
   pick,
@@ -16,6 +19,8 @@ import {
 import { theme } from '../theme';
 import { Loader, ToastService } from './common';
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 export const AddInvoiceModal = ({
   visible,
   onClose,
@@ -24,18 +29,87 @@ export const AddInvoiceModal = ({
   invoiceToEdit,
 }) => {
   const [monthYear, setMonthYear] = useState('');
+  const [showMonthYearPicker, setShowMonthYearPicker] = useState(false);
+  const [tempMonth, setTempMonth] = useState('01');
+  const [tempYear, setTempYear] = useState(new Date().getFullYear().toString());
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 15 }, (_, i) => (currentYear - 5 + i).toString());
+  const months = [
+    { label: 'Jan', value: '01' },
+    { label: 'Feb', value: '02' },
+    { label: 'Mar', value: '03' },
+    { label: 'Apr', value: '04' },
+    { label: 'May', value: '05' },
+    { label: 'Jun', value: '06' },
+    { label: 'Jul', value: '07' },
+    { label: 'Aug', value: '08' },
+    { label: 'Sep', value: '09' },
+    { label: 'Oct', value: '10' },
+    { label: 'Nov', value: '11' },
+    { label: 'Dec', value: '12' },
+  ];
+
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [file, setFile] = useState(null);
 
+  // Animation values
+  const [renderComponent, setRenderComponent] = useState(visible);
+  const translateY = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const opacity = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      setRenderComponent(true);
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: SCREEN_HEIGHT,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setRenderComponent(false);
+      });
+    }
+  }, [visible, translateY, opacity]);
+
   React.useEffect(() => {
     if (invoiceToEdit) {
       setMonthYear(invoiceToEdit.month_year || '');
-      setAmount(invoiceToEdit.amount_by_vendor || '');
+      if (invoiceToEdit.month_year) {
+        const parts = invoiceToEdit.month_year.split('-');
+        if (parts.length === 2) {
+          setTempMonth(parts[0]);
+          setTempYear(parts[1]);
+        }
+      }
+      setAmount(invoiceToEdit.amount_by_vendor?.toString() || '');
       setNote(invoiceToEdit.note || '');
       setFile(null); // Require picking a new file or backend ignores if unset
     } else {
       setMonthYear('');
+      const d = new Date();
+      setTempMonth((d.getMonth() + 1).toString().padStart(2, '0'));
+      setTempYear(d.getFullYear().toString());
       setAmount('');
       setNote('');
       setFile(null);
@@ -70,75 +144,146 @@ export const AddInvoiceModal = ({
     onSubmit({ monthYear, amount, note, file, id: invoiceToEdit?.id });
   };
 
+  const openPicker = () => {
+    if (monthYear) {
+      const parts = monthYear.split('-');
+      if (parts.length === 2) {
+        setTempMonth(parts[0]);
+        setTempYear(parts[1]);
+      }
+    } else {
+      const d = new Date();
+      setTempMonth((d.getMonth() + 1).toString().padStart(2, '0'));
+      setTempYear(d.getFullYear().toString());
+    }
+    setShowMonthYearPicker(true);
+  };
+
+  if (!renderComponent) return null;
+
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          <Text style={styles.title}>
-            {invoiceToEdit ? 'Edit Invoice' : 'Add New Invoice'}
-          </Text>
-
-          <Text style={styles.label}>Month-Year (e.g. 05-2024)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="MM-YYYY"
-            value={monthYear}
-            onChangeText={setMonthYear}
-          />
-
-          <Text style={styles.label}>Amount</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Amount"
-            keyboardType="numeric"
-            value={amount}
-            onChangeText={setAmount}
-          />
-
-          <Text style={styles.label}>Note (Optional)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Note"
-            value={note}
-            onChangeText={setNote}
-            multiline
-          />
-
-          <TouchableOpacity style={styles.fileButton} onPress={handleFilePick}>
-            <Text style={styles.fileButtonText}>
-              {file
-                ? `File: ${file.name}`
-                : invoiceToEdit
-                ? 'Attach New File (Optional)'
-                : 'Attach Invoice File'}
+    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
+      <Animated.View style={[styles.overlay, { opacity }]}>
+        <Animated.View style={[{ flex: 1, justifyContent: 'center', padding: theme.spacing.l }, { transform: [{ translateY }] }]}>
+          {/* Main Form Container */}
+          <View style={[styles.container, showMonthYearPicker && { display: 'none' }]}>
+            <Text style={styles.title}>
+              {invoiceToEdit ? 'Edit Invoice' : 'Add New Invoice'}
             </Text>
-          </TouchableOpacity>
 
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
+            <Text style={styles.label}>Month-Year</Text>
             <TouchableOpacity
-              style={styles.submitButton}
-              onPress={handleSubmit}
-              disabled={loading}
+              style={[styles.input, { justifyContent: 'center' }]}
+              onPress={openPicker}
             >
-              <>
-                <Text style={styles.submitText}>
-                  {invoiceToEdit ? 'Update' : 'Submit'}
-                </Text>
-                <Loader visible={loading} />
-              </>
+              <Text style={{ color: monthYear ? theme.colors.text : theme.colors.textSecondary }}>
+                {monthYear ? monthYear : "Select MM-YYYY"}
+              </Text>
             </TouchableOpacity>
+
+            <Text style={styles.label}>Amount</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter Amount"
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={setAmount}
+            />
+
+            <Text style={styles.label}>Note (Optional)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter Note"
+              value={note}
+              onChangeText={setNote}
+              multiline
+            />
+
+            <TouchableOpacity style={styles.fileButton} onPress={handleFilePick}>
+              <Text style={styles.fileButtonText}>
+                {file
+                  ? `File: ${file.name}`
+                  : invoiceToEdit && invoiceToEdit.invoice_file_name
+                    ? `Current: ${invoiceToEdit.invoice_file_name} (Tap to change)`
+                    : 'Attach Invoice File'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.actions}>
+              <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                <>
+                  <Text style={styles.submitText}>
+                    {invoiceToEdit ? 'Update' : 'Submit'}
+                  </Text>
+                  <Loader visible={loading} />
+                </>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </View>
-    </Modal>
+
+          {/* Month Year Picker Overlay - shown conditionally inside the same overlay */}
+          {showMonthYearPicker && (
+            <View style={styles.pickerModalContainer}>
+              <Text style={styles.pickerTitle}>Select Month and Year</Text>
+
+              <View style={styles.pickerRow}>
+                <ScrollView style={styles.customPickerScroll} showsVerticalScrollIndicator={false}>
+                  {months.map(m => (
+                    <TouchableOpacity
+                      key={m.value}
+                      style={[styles.pickerItem, tempMonth === m.value && styles.pickerItemActive]}
+                      onPress={() => setTempMonth(m.value)}
+                    >
+                      <Text style={[styles.pickerItemText, tempMonth === m.value && styles.pickerItemTextActive]}>
+                        {m.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                <ScrollView style={styles.customPickerScroll} showsVerticalScrollIndicator={false}>
+                  {years.map(y => (
+                    <TouchableOpacity
+                      key={y}
+                      style={[styles.pickerItem, tempYear === y && styles.pickerItemActive]}
+                      onPress={() => setTempYear(y)}
+                    >
+                      <Text style={[styles.pickerItemText, tempYear === y && styles.pickerItemTextActive]}>
+                        {y}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.pickerActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setShowMonthYearPicker(false)}
+                >
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.submitButton}
+                  onPress={() => {
+                    setMonthYear(`${tempMonth}-${tempYear}`);
+                    setShowMonthYearPicker(false);
+                  }}
+                >
+                  <Text style={styles.submitText}>Select</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </Animated.View>
+      </Animated.View>
+    </View>
   );
 };
 
@@ -214,5 +359,49 @@ const styles = StyleSheet.create({
   submitText: {
     color: theme.colors.white,
     fontWeight: 'bold',
+  },
+  pickerModalContainer: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.m,
+    padding: theme.spacing.l,
+    width: '90%',
+    alignSelf: 'center',
+  },
+  pickerTitle: {
+    fontSize: theme.fontSize.large,
+    fontWeight: 'bold',
+    marginBottom: theme.spacing.m,
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    height: 180,
+  },
+  customPickerScroll: {
+    flex: 1,
+    paddingHorizontal: theme.spacing.s,
+  },
+  pickerItem: {
+    paddingVertical: theme.spacing.m,
+    alignItems: 'center',
+    borderRadius: theme.radius.s,
+  },
+  pickerItemActive: {
+    backgroundColor: theme.colors.primary + '20',
+  },
+  pickerItemText: {
+    fontSize: theme.fontSize.medium,
+    color: theme.colors.textSecondary,
+  },
+  pickerItemTextActive: {
+    color: theme.colors.primary,
+    fontWeight: 'bold',
+  },
+  pickerActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.m,
   },
 });

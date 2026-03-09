@@ -9,7 +9,10 @@ import {
   TextInput,
   Image,
   Linking,
+  Alert,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {
   fetchActivityGrid,
@@ -19,6 +22,7 @@ import {
   swapToken,
   reissueToken,
   sendTokenNotification,
+  fetchUserLocation,
 } from '../../api/company';
 import { calculateDistance } from '../../utils/distance';
 import { getSession } from '../../utils/session';
@@ -38,6 +42,7 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
     qMobile,
     qSTime,
     qETime,
+    preBookingDays,
   } = route.params || {};
   const [gridData, setGridData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +59,29 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
   // Action Modal State
   const [actionModalVisible, setActionModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [swapModalVisible, setSwapModalVisible] = useState(false);
+  const [swapNumber, setSwapNumber] = useState('');
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split('T')[0],
+  );
+  const [isDatePickerModalVisible, setIsDatePickerModalVisible] =
+    useState(false);
+
+  const getDateLabel = dateStr => {
+    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date(new Date().getTime() + 86400000)
+      .toISOString()
+      .split('T')[0];
+
+    if (dateStr === today) return 'Today';
+    if (dateStr === tomorrow) return 'Tomorrow';
+
+    return new Date(dateStr).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+    });
+  };
 
   useEffect(() => {
     loadData();
@@ -83,13 +111,12 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
 
     setIssuing(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
       const result = await assignManualToken({
         ...formData,
         queue_master_id: queueId,
-        queue_date: today,
+        queue_date: selectedDate,
       });
-
+      console.log('result', result);
       if (result.found) {
         ToastService.show({
           message: result.message || 'Token issued successfully',
@@ -124,11 +151,23 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
           session.logged_company_id,
           locationId,
           queueId,
-          route.params, // Pass all params including viewType, token_status, fromdate, etc.
+          {
+            ...route.params,
+            preBookingDays: preBookingDays,
+            totalRecords: gridData?.total_records || 0,
+          },
         );
+        console.log('data', data);
 
-        // Calculate distance locally
+        // De-duplicate items based on company_token_id as a safeguard
         if (data && data.activitygrid_data) {
+          const seen = new Set();
+          data.activitygrid_data = data.activitygrid_data.filter(item => {
+            const duplicate = seen.has(item.company_token_id);
+            seen.add(item.company_token_id);
+            return !duplicate;
+          });
+
           const compLat = parseFloat(data.company_latitude);
           const compLon = parseFloat(data.company_longitude);
 
@@ -165,9 +204,11 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
       setLoading(true);
       const session = await getSession();
       const result = await setTokenArrivedStatus(session.logged_company_id, {
-        txtctid: item.company_token_id,
-        status: status, // 'A' for Arrived, 'N' for Not Arrived
+        company_token_id: item.company_token_id,
+        comp_id: session.logged_company_id,
+        token_status: status, // 'A' for Arrived, 'N' for Not Arrived
       });
+      console.log("result", result);
       if (result.found) {
         ToastService.show({ message: result.message, type: 'success' });
         loadData();
@@ -215,10 +256,15 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
     try {
       setLoading(true);
       const session = await getSession();
-      const result = await sendTokenNotification(session.logged_company_id, {
-        txtctid: item.company_token_id,
-        comp_id: session.logged_company_id,
-      });
+      const params = {
+        token_id: item.company_token_id,
+        to_user_id: item.user_id,
+        to_user_type: 'U',
+        template_code: 'CTA',
+      };
+      console.log('Sending Notification with params:', params);
+      const result = await sendTokenNotification(session.logged_company_id, params);
+      console.log('Notification result:', result);
       if (result.found) {
         ToastService.show({ message: result.message, type: 'success' });
       } else {
@@ -235,6 +281,123 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelQNo = async item => {
+    Alert.alert(
+      'Confirm',
+      'Are you sure you want to cancel this token?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const session = await getSession();
+              // Native app uses setArrivedStatus(compTokenId, false, true) for cancel
+              // which maps to token_status: 'C'
+              const result = await setTokenArrivedStatus(
+                session.logged_company_id,
+                {
+                  company_token_id: item.company_token_id,
+                  comp_id: session.logged_company_id,
+                  token_status: 'C',
+                },
+              );
+              console.log("result-=-=-=>", result);
+              if (result.found) {
+                ToastService.show({ message: result.message, type: 'success' });
+                setActionModalVisible(false);
+                loadData();
+              } else {
+                ToastService.show({
+                  message: result.message || 'Failed to cancel token',
+                  type: 'error',
+                });
+              }
+            } catch (e) {
+              console.error(e);
+              ToastService.show({
+                message: 'Failed to cancel token',
+                type: 'error',
+              });
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
+  const handleUserLocation = async item => {
+    try {
+      setLoading(true);
+      const session = await getSession();
+      const result = await fetchUserLocation(
+        session.logged_company_id,
+        item.company_token_id,
+      );
+      if (result.found && result.listUserLocationInfo) {
+        const loc = result.listUserLocationInfo[0];
+        if (loc && loc.user_latitude && loc.user_longitude) {
+          // Navigate to the MapScreen with user's coordinates
+          navigation.navigate('Map', {
+            latitude: loc.user_latitude,
+            longitude: loc.user_longitude,
+            companyName: item.user_full_name
+              ? `${item.user_full_name} (Token #${item.token_no})`
+              : `Token #${item.token_no}`,
+          });
+        } else {
+          ToastService.show({ message: 'Location not available', type: 'warning' });
+        }
+      } else {
+        ToastService.show({
+          message: result.message || 'Location not found',
+          type: 'warning',
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      ToastService.show({ message: 'Failed to fetch location', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReissueDateChange = async (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (event.type === 'dismissed') return;
+    if (selectedDate && selectedItem) {
+      try {
+        setLoading(true);
+        const sendDateStr = selectedDate.toISOString().split('T')[0];
+        const session = await getSession();
+        const result = await reissueToken({
+          company_token_id: selectedItem.company_token_id,
+          company_id: session.logged_company_id,
+          queue_date: sendDateStr,
+        });
+        if (result.found) {
+          ToastService.show({ message: result.message, type: 'success' });
+          setActionModalVisible(false);
+          loadData();
+        } else {
+          ToastService.show({
+            message: result.message || 'Failed to reissue token',
+            type: 'error',
+          });
+        }
+      } catch (e) {
+        console.error(e);
+        ToastService.show({ message: 'Failed to reissue token', type: 'error' });
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -291,25 +454,25 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
           isFilterResult
             ? []
             : [
-                {
-                  iconName: 'people',
-                  onPress: () => setModalVisible(true),
-                },
-                {
-                  iconName: 'filter-list',
-                  onPress: () =>
-                    navigation.navigate('QueueFilter', {
-                      queueId,
-                      queueName,
-                      locationId,
-                      locationName,
-                      compName,
-                      compMobile,
-                      locMobile,
-                      qMobile,
-                    }),
-                },
-              ]
+              {
+                iconName: 'people',
+                onPress: () => setModalVisible(true),
+              },
+              {
+                iconName: 'filter-list',
+                onPress: () =>
+                  navigation.navigate('QueueFilter', {
+                    queueId,
+                    queueName,
+                    locationId,
+                    locationName,
+                    compName,
+                    compMobile,
+                    locMobile,
+                    qMobile,
+                  }),
+              },
+            ]
         }
       />
       <ScrollView style={styles.container}>
@@ -336,8 +499,8 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
         {loading && !gridData && <Loader visible={loading} />}
 
         {gridData &&
-        gridData.activitygrid_data &&
-        gridData.activitygrid_data.length > 0 ? (
+          gridData.activitygrid_data &&
+          gridData.activitygrid_data.length > 0 ? (
           <View style={styles.listContainer}>
             {sections.map((section, index) => (
               <View key={index}>
@@ -357,14 +520,24 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
                       <Text style={styles.tokenNo}>{item.token_no}</Text>
                     </View>
 
-                    {/* Placeholder for User Pic - Natively uses rounded image view */}
-                    <View style={styles.userPicPlaceholder}>
-                      <MaterialIcons
-                        name="person"
-                        size={30}
-                        color={theme.colors.textLight}
+                    {/* User Profile Photo — loaded from API user_pic field */}
+                    {item.user_pic ? (
+                      <Image
+                        source={{
+                          uri: `https://myqno.com/qapp/${item.user_pic}`,
+                        }}
+                        style={styles.userPic}
+                        defaultSource={require('../../assets/images/ic_logo.png')}
                       />
-                    </View>
+                    ) : (
+                      <View style={styles.userPicPlaceholder}>
+                        <MaterialIcons
+                          name="person"
+                          size={30}
+                          color={theme.colors.textLight}
+                        />
+                      </View>
+                    )}
 
                     <View style={styles.userInfo}>
                       <Text style={styles.userName}>{item.user_full_name}</Text>
@@ -411,6 +584,7 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
           transparent={true}
           visible={modalVisible}
           onRequestClose={() => setModalVisible(false)}
+          onShow={() => setSelectedDate(new Date().toISOString().split('T')[0])}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContainer}>
@@ -447,9 +621,13 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
                     setFormData(prev => ({ ...prev, persons: text }))
                   }
                 />
-                <View style={[styles.input, styles.disabledInput]}>
-                  <Text style={styles.inputText}>Today</Text>
-                </View>
+
+                <TouchableOpacity
+                  style={styles.input}
+                  onPress={() => setIsDatePickerModalVisible(true)}
+                >
+                  <Text style={styles.inputText}>{getDateLabel(selectedDate)}</Text>
+                </TouchableOpacity>
               </View>
 
               <View style={styles.modalFooter}>
@@ -472,6 +650,69 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
         </Modal>
         <Loader visible={issuing} message="Issuing token…" />
 
+        {/* Custom Date Picker Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={isDatePickerModalVisible}
+          onRequestClose={() => setIsDatePickerModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.bottomSheetOverlay}
+            activeOpacity={1}
+            onPress={() => setIsDatePickerModalVisible(false)}
+          >
+            <View style={styles.bottomSheetContainer}>
+              <View style={styles.bottomSheetContent}>
+                <View style={styles.actionHeader}>
+                  <Text style={styles.actionTitle}>Select Date</Text>
+                </View>
+                <ScrollView style={{ maxHeight: 300 }}>
+                  {Array.from({
+                    length: preBookingDays > 0 ? Math.min(7, preBookingDays) : 7,
+                  }).map((_, i) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + i);
+                    const dateStr = d.toISOString().split('T')[0];
+                    const isSelected = selectedDate === dateStr;
+
+                    const label = getDateLabel(dateStr);
+
+                    return (
+                      <TouchableOpacity
+                        key={i}
+                        style={[
+                          styles.actionItem,
+                          isSelected && { backgroundColor: theme.colors.surface },
+                        ]}
+                        onPress={() => {
+                          setSelectedDate(dateStr);
+                          setIsDatePickerModalVisible(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.actionText,
+                            isSelected && { fontWeight: 'bold' },
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+              <TouchableOpacity
+                style={styles.closeActionBtn}
+                onPress={() => setIsDatePickerModalVisible(false)}
+              >
+                <Text style={styles.closeActionText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
         {/* User Action Modal (Bottom Sheet Style) */}
         <Modal
           animationType="slide"
@@ -487,19 +728,119 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
             <View style={styles.bottomSheetContainer}>
               <View style={styles.bottomSheetContent}>
                 {selectedItem && (
+                  <View style={styles.actionHeader}>
+                    <Text style={styles.actionTitle}>
+                      {selectedItem.user_full_name} ({selectedItem.token_no})
+                    </Text>
+                    <Text style={styles.actionSubtitle}>
+                      {selectedItem.queue_name}
+                    </Text>
+                  </View>
+                )}
+
+                {selectedItem && (
                   <>
-                    <View style={styles.actionHeader}>
-                      <Text style={styles.actionTitle}>
-                        {selectedItem.user_full_name} ({selectedItem.token_no})
-                      </Text>
-                      <Text style={styles.actionSubtitle}>
-                        {selectedItem.queue_name}
-                      </Text>
-                    </View>
+                    {!isFilterResult && (
+                      <>
+                        {selectedItem.token_status === 'I' && (
+                          <>
+                            <TouchableOpacity
+                              style={styles.actionItem}
+                              onPress={() => {
+                                setActionModalVisible(false);
+                                handleNotify(selectedItem);
+                              }}
+                            >
+                              <Text style={styles.actionText}>Buzz</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={styles.actionItem}
+                              onPress={() => {
+                                setActionModalVisible(false);
+                                handleSetStatus(selectedItem, 'A');
+                              }}
+                            >
+                              <Text style={styles.actionText}>Arrived</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={styles.actionItem}
+                              onPress={() => {
+                                setActionModalVisible(false);
+                                handleSetStatus(selectedItem, 'N');
+                              }}
+                            >
+                              <Text style={styles.actionText}>Not Arrived</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={styles.actionItem}
+                              onPress={() => {
+                                setActionModalVisible(false);
+                                handleCancelQNo(selectedItem);
+                              }}
+                            >
+                              <Text style={styles.actionText}>Cancel Token</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={styles.actionItem}
+                              onPress={() => {
+                                setActionModalVisible(false);
+                                setSwapNumber('');
+                                setSwapModalVisible(true);
+                              }}
+                            >
+                              <Text style={styles.actionText}>Swap Token</Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+
+                        <TouchableOpacity
+                          style={styles.actionItem}
+                          onPress={() => {
+                            setActionModalVisible(false);
+                            setShowDatePicker(true);
+                          }}
+                        >
+                          <Text style={styles.actionText}>Reissue Token</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.actionItem}
+                          onPress={() => {
+                            setActionModalVisible(false);
+                            navigation.navigate('SearchReferCompany', {
+                              companyName: compName,
+                              compTokenId: selectedItem.company_token_id,
+                              companyId: selectedItem.company_id,
+                            });
+                          }}
+                        >
+                          <Text style={styles.actionText}>Refer</Text>
+                        </TouchableOpacity>
+
+                        {selectedItem.token_status === 'I' && (
+                          <TouchableOpacity
+                            style={styles.actionItem}
+                            onPress={() => {
+                              setActionModalVisible(false);
+                              handleUserLocation(selectedItem);
+                            }}
+                          >
+                            <Text style={styles.actionText}>
+                              User Location {selectedItem.distance || ''}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    )}
 
                     <TouchableOpacity
                       style={styles.actionItem}
                       onPress={() => {
+                        setActionModalVisible(false);
                         if (selectedItem.user_reg_mobile) {
                           Linking.openURL(
                             `tel:${selectedItem.user_reg_mobile}`,
@@ -516,6 +857,7 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
                       <TouchableOpacity
                         style={styles.actionItem}
                         onPress={() => {
+                          setActionModalVisible(false);
                           if (selectedItem.user_reg_email_id) {
                             Linking.openURL(
                               `mailto:${selectedItem.user_reg_email_id}`,
@@ -541,6 +883,65 @@ export const CompActiveQueueScreen = ({ navigation, route }) => {
             </View>
           </TouchableOpacity>
         </Modal>
+
+        {/* Swap Token Modal */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={swapModalVisible}
+          onRequestClose={() => setSwapModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Swap Token</Text>
+                <Text style={styles.modalSubtitle}>
+                  Enter token number to swap with
+                </Text>
+              </View>
+
+              <View style={styles.modalBody}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Token Number"
+                  keyboardType="number-pad"
+                  value={swapNumber}
+                  onChangeText={setSwapNumber}
+                />
+              </View>
+
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setSwapModalVisible(false)}
+                >
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.okButton]}
+                  onPress={async () => {
+                    if (!swapNumber) return;
+                    setSwapModalVisible(false);
+                    setActionModalVisible(false);
+                    handleSwap(selectedItem, swapNumber);
+                  }}
+                >
+                  <Text style={styles.buttonText}>OK</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={new Date()}
+            mode="date"
+            display="default"
+            minimumDate={new Date()}
+            onChange={handleReissueDateChange}
+          />
+        )}
       </ScrollView>
     </View>
   );
@@ -606,10 +1007,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: theme.fontSize.large,
   },
+  userPic: {
+    width: 50,
+    height: 50,
+    borderRadius: 25, // Circular like native
+    marginRight: theme.spacing.m,
+    backgroundColor: theme.colors.surface,
+  },
   userPicPlaceholder: {
     width: 50,
     height: 50,
-    borderRadius: 5,
+    borderRadius: 25,
     borderWidth: 1,
     borderColor: theme.colors.divider,
     justifyContent: 'center',
@@ -707,9 +1115,11 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.medium,
     color: theme.colors.iconDark,
   },
-  disabledInput: {
-    backgroundColor: theme.colors.surface,
-    justifyContent: 'center',
+  label: {
+    fontSize: theme.fontSize.medium,
+    fontWeight: 'bold',
+    color: theme.colors.iconDark,
+    marginBottom: theme.spacing.s,
   },
   inputText: {
     color: theme.colors.iconDark,
@@ -781,7 +1191,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: theme.fontSize.medium,
-    color: theme.colors.primary, // Using primary color to match the blue in screenshot closely
+    color: theme.colors.blue,
   },
   closeActionBtn: {
     backgroundColor: theme.colors.white,
@@ -792,6 +1202,6 @@ const styles = StyleSheet.create({
   closeActionText: {
     fontSize: theme.fontSize.medium,
     fontWeight: 'bold',
-    color: theme.colors.primary,
+    color: theme.colors.blue,
   },
 });

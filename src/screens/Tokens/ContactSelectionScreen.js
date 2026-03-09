@@ -93,22 +93,23 @@ export const ContactSelectionScreen = () => {
 
   const importContactsToServer = async contactList => {
     try {
-      const userSession = await AsyncStorage.getItem('user_session');
-      if (!userSession) return;
-      const userData = JSON.parse(userSession);
-      const userId = userData.logged_user_id;
-      if (!userId) return;
+      const vendorSession = await AsyncStorage.getItem('vendor_session');
+      if (vendorSession) {
+        const userData = JSON.parse(vendorSession);
+        const userId = userData.logged_user_id;
+        if (!userId) return;
 
-      // Format: [{mobile_number: "...", full_name: "..."}]
-      const formatted = contactList
-        .map(c => ({
-          mobile_number: c.phoneNumbers[0]?.number?.replace(/\D/g, '') || '',
-          full_name: c.displayName || '',
-        }))
-        .filter(c => c.mobile_number.length > 0);
+        // Format: [{mobile_number: "...", full_name: "..."}]
+        const formatted = contactList
+          .map(c => ({
+            mobile_number: c.phoneNumbers[0]?.number?.replace(/\D/g, '') || '',
+            full_name: c.displayName || '',
+          }))
+          .filter(c => c.mobile_number.length > 0);
 
-      await importContacts(userId, formatted);
-      console.log('✅ [ContactSelection] Contacts imported to server');
+        await importContacts(userId, formatted);
+        console.log('✅ [ContactSelection] Contacts imported to server');
+      }
     } catch (err) {
       console.warn('⚠️ [ContactSelection] Failed to import contacts:', err);
     }
@@ -146,9 +147,17 @@ export const ContactSelectionScreen = () => {
     }
 
     setSubmitting(true);
-    // Read userId from user_session JSON (not the non-existent 'userId' key)
-    const userSession = await AsyncStorage.getItem('user_session');
-    const userData = userSession ? JSON.parse(userSession) : {};
+    // Read userId from vendor_session JSON
+    const vendorSession = await AsyncStorage.getItem('vendor_session');
+    if (!vendorSession) {
+      ToastService.show({
+        message: 'User session not found. Please log in again.',
+        type: 'error',
+      });
+      setSubmitting(false);
+      return;
+    }
+    const userData = JSON.parse(vendorSession);
     const userId = userData.logged_user_id || userData.user_master_id || '';
 
     // Format contacts for API: { mobile: "...", fullname: "..." }

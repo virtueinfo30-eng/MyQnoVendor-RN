@@ -6,12 +6,14 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Loader, ToastService } from '../../components/common';
 import {
   deleteVendorInvoice,
   addVendorInvoice,
   updateVendorInvoice,
   downloadVendorInvoiceUrl,
+  fetchVendorInvoiceList,
 } from '../../api/vendorInvoice';
 import { getSession } from '../../utils/session';
 import { AddInvoiceModal } from '../../components/AddInvoiceModal';
@@ -96,7 +98,7 @@ export const VendorInvoiceListScreen = ({ navigation }) => {
           userSession?.logged_company_id,
         );
       }
-      if (res && res.type === 'SUCCESS') {
+      if (res && res.found === true) {
         ToastService.show({
           message: `Invoice ${formData.id ? 'updated' : 'added'} successfully`,
           type: 'success',
@@ -127,70 +129,96 @@ export const VendorInvoiceListScreen = ({ navigation }) => {
     }
   };
 
+  const formatMonthYear = (monthYearStr) => {
+    if (!monthYearStr) return '';
+    const parts = monthYearStr.split('-');
+    if (parts.length === 2) {
+      const monthIndex = parseInt(parts[0], 10) - 1;
+      const year = parts[1];
+      const date = new Date(year, monthIndex);
+      return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+    }
+    return monthYearStr;
+  };
+
+  const getStatusColor = (statusAbb) => {
+    switch (statusAbb) {
+      case 'Y':
+        return theme.colors.primary; // Approved - Green/Primary
+      case 'R':
+        return theme.colors.error;   // Rejected - Red
+      default:
+        return theme.colors.warning; // Pending/New - Orange/Yellow
+    }
+  };
+
   const renderItem = ({ item }) => (
     <View style={styles.card}>
-      <View style={styles.row}>
-        <Text style={styles.monthText}>{item.month_year}</Text>
-        <TouchableOpacity
-          style={styles.detailButton}
-          onPress={() =>
-            navigation.navigate('VendorInvoiceDetail', { invoice: item })
-          }
-        >
-          <Text style={styles.detailButtonText}>View Details</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={styles.cardContent}
+        onPress={() => navigation.navigate('VendorInvoiceDetail', { invoice: item })}
+        activeOpacity={0.7}
+      >
+        <View style={styles.row}>
+          <Text style={styles.monthText}>{formatMonthYear(item.month_year)}</Text>
+          <MaterialIcons
+            name="chevron-right"
+            size={24}
+            color={theme.colors.textSecondary}
+          />
+        </View>
 
-      <View style={styles.row}>
-        <Text style={styles.amountLabel}>Amount: </Text>
-        <Text style={styles.amountText}>{item.amount_by_vendor}</Text>
-      </View>
+        <View style={styles.row}>
+          <Text style={styles.amountLabel}>Amount: </Text>
+          <Text style={styles.amountText}>₹{item.amount_by_vendor}</Text>
+        </View>
 
-      <View style={styles.row}>
-        <Text style={styles.statusLabel}>Status: </Text>
-        <Text
-          style={[
-            styles.statusText,
-            item.approve_status_abb === 'Y'
-              ? styles.statusApproved
-              : styles.statusPending,
-          ]}
-        >
-          {item.approve_status_abb === 'Y'
-            ? 'Approved'
-            : item.approve_status_abb === 'R'
-            ? 'Rejected'
-            : 'Pending'}
-        </Text>
-      </View>
+        <View style={styles.row}>
+          <Text style={styles.statusLabel}>Status: </Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.approve_status_abb) + '20' }]}>
+            <Text
+              style={[
+                styles.statusText,
+                { color: getStatusColor(item.approve_status_abb) }
+              ]}
+            >
+              {item.approve_status || (item.approve_status_abb === 'Y'
+                ? 'Approved'
+                : item.approve_status_abb === 'R'
+                  ? 'Rejected'
+                  : 'Pending')}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
 
       <View style={styles.actionRow}>
         <TouchableOpacity
-          style={styles.editButton}
+          style={styles.iconButton}
           onPress={() => {
             setEditingInvoice(item);
             setModalVisible(true);
           }}
         >
-          <Text style={styles.editText}>Edit</Text>
+          <MaterialIcons name="edit" size={24} color={theme.colors.blue} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.deleteButton}
+          style={styles.iconButton}
           onPress={() => handleDelete(item.id)}
         >
-          <Text style={styles.deleteText}>Delete</Text>
+          <MaterialIcons name="delete" size={24} color={theme.colors.error} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.downloadButton}
+          style={styles.iconButton}
           onPress={() => {
             import('react-native').then(({ Linking }) => {
               Linking.openURL(downloadVendorInvoiceUrl(item.id));
             });
           }}
         >
-          <Text style={styles.downloadText}>Download</Text>
+          <MaterialIcons name="file-download" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -236,16 +264,18 @@ export const VendorInvoiceListScreen = ({ navigation }) => {
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity> */}
 
-      <AddInvoiceModal
-        visible={modalVisible}
-        onClose={() => {
-          setModalVisible(false);
-          setEditingInvoice(null);
-        }}
-        onSubmit={handleAddInvoice}
-        loading={submitting}
-        invoiceToEdit={editingInvoice}
-      />
+      {modalVisible && (
+        <AddInvoiceModal
+          visible={modalVisible}
+          onClose={() => {
+            setModalVisible(false);
+            setEditingInvoice(null);
+          }}
+          onSubmit={handleAddInvoice}
+          loading={submitting}
+          invoiceToEdit={editingInvoice}
+        />
+      )}
     </View>
   );
 };
@@ -280,32 +310,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: theme.colors.text,
   },
-  detailButton: {
-    backgroundColor: theme.colors.primary + '20',
-    paddingHorizontal: theme.spacing.m,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.radius.l,
-  },
-  detailButtonText: {
-    color: theme.colors.primary,
-    fontWeight: '600',
-    fontSize: theme.fontSize.small,
-  },
   amountLabel: {
     color: theme.colors.textSecondary,
     fontSize: theme.fontSize.medium,
   },
   amountText: {
     color: theme.colors.text,
-    fontSize: theme.fontSize.medium,
+    fontSize: theme.fontSize.medium + 2,
     fontWeight: 'bold',
   },
   statusLabel: {
     color: theme.colors.textSecondary,
     fontSize: theme.fontSize.medium,
+    alignSelf: 'center',
+  },
+  statusBadge: {
+    paddingHorizontal: theme.spacing.m,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.radius.l,
   },
   statusText: {
-    fontSize: theme.fontSize.medium,
+    fontSize: theme.fontSize.small,
     fontWeight: 'bold',
   },
   statusApproved: { color: theme.colors.primary },
@@ -318,29 +343,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
     paddingTop: theme.spacing.s,
+    gap: theme.spacing.m,
   },
-  editButton: {
+  iconButton: {
     padding: theme.spacing.s,
-    marginRight: theme.spacing.s,
-  },
-  editText: {
-    color: theme.colors.blue,
-    fontWeight: 'bold',
-  },
-  deleteButton: {
-    padding: theme.spacing.s,
-    marginRight: theme.spacing.s,
-  },
-  deleteText: {
-    color: theme.colors.error,
-    fontWeight: 'bold',
-  },
-  downloadButton: {
-    padding: theme.spacing.s,
-  },
-  downloadText: {
-    color: theme.colors.primary,
-    fontWeight: 'bold',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   fab: {
     position: 'absolute',

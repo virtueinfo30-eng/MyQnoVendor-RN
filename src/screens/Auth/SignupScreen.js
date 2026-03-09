@@ -18,7 +18,8 @@ import {
   getCitiesList,
   getCompanyCategories,
   registerVendor,
-} from '../api/auth';
+  checkDuplicateMobile,
+} from '../../api/auth';
 import { theme } from '../../theme';
 import { AuthHeader, Loader, ToastService } from '../../components/common';
 
@@ -39,6 +40,10 @@ export const SignupScreen = ({ navigation }) => {
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
   const [categories, setCategories] = useState([]);
+
+  // Duplicate Mobile States
+  const [mobileError, setMobileError] = useState('');
+  const [mobileSuccess, setMobileSuccess] = useState('');
 
   // Form State
   const [form, setForm] = useState({
@@ -130,6 +135,37 @@ export const SignupScreen = ({ navigation }) => {
     }
   };
 
+  const handleMobileBlur = async () => {
+    if (!form.mobile_number) {
+      setMobileError('');
+      setMobileSuccess('');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await checkDuplicateMobile(
+        form.mobile_number,
+        'C', // Vendor
+        form.cmb_country || '0',
+        '0'
+      );
+
+      if (result && String(result.code) === '1') {
+        setMobileError(result.message || 'Mobile number already registered');
+        setMobileSuccess('');
+      } else if (result && String(result.code) !== '1') {
+        setMobileError('');
+        const msg = result.message ? result.message.replace('OK', '').trim() : '';
+        setMobileSuccess(msg);
+      }
+    } catch (e) {
+      console.log('Error checking duplicate mobile:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSignup = async () => {
     // Validation
     if (
@@ -146,6 +182,11 @@ export const SignupScreen = ({ navigation }) => {
         message: 'Please fill all required fields',
         type: 'warning',
       });
+      return;
+    }
+
+    if (mobileError) {
+      ToastService.show({ message: mobileError, type: 'warning' });
       return;
     }
 
@@ -449,11 +490,23 @@ export const SignupScreen = ({ navigation }) => {
                 placeholderTextColor={theme.colors.placeholder}
                 keyboardType="phone-pad"
                 value={form.mobile_number}
-                onChangeText={text =>
-                  setForm(prev => ({ ...prev, mobile_number: text }))
-                }
+                onChangeText={text => {
+                  setForm(prev => ({ ...prev, mobile_number: text }));
+                  if (mobileError) setMobileError('');
+                  if (mobileSuccess) setMobileSuccess('');
+                }}
+                onBlur={handleMobileBlur}
               />
             </View>
+            {mobileError ? (
+              <Text style={{ color: theme.colors.error, fontSize: 12, marginTop: -10, marginBottom: 10 }}>
+                {mobileError}
+              </Text>
+            ) : mobileSuccess ? (
+              <Text style={{ color: theme.colors.success, fontSize: 12, marginTop: -10, marginBottom: 10 }}>
+                {mobileSuccess}
+              </Text>
+            ) : null}
 
             <Text style={styles.label}>Email ID</Text>
             <View style={styles.inputContainer}>

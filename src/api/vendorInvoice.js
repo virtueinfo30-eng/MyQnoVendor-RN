@@ -24,7 +24,7 @@ export const addVendorInvoice = async (
     formData.append('month_year', monthYear);
     formData.append('amount_by_vendor', amount);
     formData.append('note', note);
-
+    console.log('companyId-----==', companyId);
     if (file) {
       formData.append('vendorInvoice', {
         uri: file.uri,
@@ -32,12 +32,53 @@ export const addVendorInvoice = async (
         name: file.name || 'invoice.pdf',
       });
     }
-
     const response = await apiClient.post(ENDPOINTS.ADD_INVOICE, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   } catch (error) {
+    if (error.response && error.response.data && typeof error.response.data === 'string') {
+      try {
+        const str = error.response.data;
+        const match = str.match(/(\{|\[)[\s\S]*(\}|\])/);
+        if (match) {
+          const startIndex = match.index;
+          const startChar = str[startIndex];
+          const endChar = startChar === '{' ? '}' : ']';
+          const endIndex = str.lastIndexOf(endChar);
+
+          if (endIndex > startIndex) {
+            const jsonStr = str.substring(startIndex, endIndex + 1);
+            return JSON.parse(jsonStr);
+          }
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+
+    // Check if the response was actually 200 but contained a weird string that got caught in error
+    if (error.data && typeof error.data === 'string') {
+      try {
+        const str = error.data;
+        const match = str.match(/(\{|\[)[\s\S]*(\}|\])/);
+        if (match) {
+          const startIndex = match.index;
+          const startChar = str[startIndex];
+          const endChar = startChar === '{' ? '}' : ']';
+          const endIndex = str.lastIndexOf(endChar);
+
+          if (endIndex > startIndex) {
+            const jsonStr = str.substring(startIndex, endIndex + 1);
+            return JSON.parse(jsonStr);
+          }
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+
+    console.log('error------', error);
     console.error('Add Invoice Error:', error);
     throw error;
   }

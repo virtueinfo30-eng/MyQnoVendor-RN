@@ -4,13 +4,13 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Platform,
   StatusBar,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { theme } from '../../theme';
 import { DrawerActions } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export const CustomHeader = ({
   title,

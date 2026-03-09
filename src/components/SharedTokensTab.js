@@ -11,18 +11,20 @@ import { theme } from '../theme';
 import { ToastService, Loader } from './common';
 import { fetchSharedTokens, cancelSharedToken } from '../api/user_api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
 
 export const SharedTokensTab = ({ loading, setLoading }) => {
   const [tokens, setTokens] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState('');
+  const isFocused = useIsFocused();
 
   useEffect(() => {
     loadUserId();
   }, []);
 
   useEffect(() => {
-    if (userId) {
+    if (userId && isFocused) {
       loadTokens();
       // Auto-refresh every 30 seconds, matching native Android TimeManager
       const interval = setInterval(() => {
@@ -30,13 +32,13 @@ export const SharedTokensTab = ({ loading, setLoading }) => {
       }, 30000);
       return () => clearInterval(interval);
     }
-  }, [userId]);
+  }, [userId, isFocused]);
 
   const loadUserId = async () => {
     try {
-      const userSession = await AsyncStorage.getItem('user_session');
-      if (userSession) {
-        const userData = JSON.parse(userSession);
+      const vendorSession = await AsyncStorage.getItem('vendor_session');
+      if (vendorSession) {
+        const userData = JSON.parse(vendorSession);
         setUserId(userData.user_master_id || userData.logged_user_id || '');
       }
     } catch (error) {
@@ -48,6 +50,7 @@ export const SharedTokensTab = ({ loading, setLoading }) => {
     if (!userId) return;
     setLoading(true);
     const result = await fetchSharedTokens(userId);
+    console.log("Shared Tokens Result", result)
     setLoading(false);
 
     if (result.success) {

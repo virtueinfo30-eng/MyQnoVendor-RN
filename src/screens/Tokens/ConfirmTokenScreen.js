@@ -55,12 +55,12 @@ export const ConfirmTokenScreen = () => {
     } catch (error) {
       console.warn('⚠️ Could not get location, checking session...', error);
       try {
-        const userSession = await AsyncStorage.getItem('user_session');
-        if (userSession) {
-          const session = JSON.parse(userSession);
-          if (session.latitude && session.longitude) {
-            lat = session.latitude;
-            long = session.longitude;
+        const vendorSession = await AsyncStorage.getItem('vendor_session');
+        if (vendorSession) {
+          const userData = JSON.parse(vendorSession);
+          if (userData.latitude && userData.longitude) {
+            lat = userData.latitude;
+            long = userData.longitude;
             console.log('📍 Using Session Location:', lat, long);
           }
         }

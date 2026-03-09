@@ -14,16 +14,31 @@ import { CustomHeader } from '../../components/common/CustomHeader';
 import { theme } from '../../theme';
 import {
   fetchQueueDetails,
-  saveQueueDetails,
   fetchRingGroupNames,
 } from '../../api/company';
-import { getSession, saveTerminalDisplayIds } from '../../utils/session';
+import { checkDuplicateMobile } from '../../api/auth';
+import { getSession, getTerminalDisplayIds, saveTerminalDisplayIds } from '../../utils/session';
 
 export const AddQueueScreen = ({ navigation, route }) => {
   const { locationId, locationName, queueId, isUpdate, location } =
     route.params || {};
   const [loading, setLoading] = useState(false);
   const [isDisplayScreen, setIsDisplayScreen] = useState(false);
+
+  useEffect(() => {
+    const checkDisplayScreen = async () => {
+      if (isUpdate && queueId && locationId) {
+        const stored = await getTerminalDisplayIds();
+        if (
+          String(stored.locationId) === String(locationId) &&
+          String(stored.queueId) === String(queueId)
+        ) {
+          setIsDisplayScreen(true);
+        }
+      }
+    };
+    checkDisplayScreen();
+  }, [isUpdate, queueId, locationId]);
   const [companyInfo, setCompanyInfo] = useState({
     name: '',
     mobile: '',
@@ -31,6 +46,8 @@ export const AddQueueScreen = ({ navigation, route }) => {
     logged_company_id: '',
   });
   const [userType, setUserType] = useState('');
+  const [mobileError, setMobileError] = useState('');
+  const [mobileSuccess, setMobileSuccess] = useState('');
   console.log('userType', userType);
   const DEFAULT_TIME_SLOTS = [
     { day: 'Mon', active: false, startTime: '09:00', endTime: '18:00' },
@@ -101,19 +118,19 @@ export const AddQueueScreen = ({ navigation, route }) => {
             timeSlots:
               resp.listTimingsInfo && resp.listTimingsInfo.length > 0
                 ? DEFAULT_TIME_SLOTS.map(d => {
-                    const info = resp.listTimingsInfo.find(
-                      t => t.week_day === d.day,
-                    );
-                    if (info) {
-                      return {
-                        ...d,
-                        active: true,
-                        startTime: info.start_time.substring(0, 5),
-                        endTime: info.end_time.substring(0, 5),
-                      };
-                    }
-                    return d;
-                  })
+                  const info = resp.listTimingsInfo.find(
+                    t => t.week_day === d.day,
+                  );
+                  if (info) {
+                    return {
+                      ...d,
+                      active: true,
+                      startTime: info.start_time.substring(0, 5),
+                      endTime: info.end_time.substring(0, 5),
+                    };
+                  }
+                  return d;
+                })
                 : DEFAULT_TIME_SLOTS,
           });
         }
@@ -129,12 +146,55 @@ export const AddQueueScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleMobileBlur = async () => {
+    const mobile = formData.mobile_number?.trim();
+    if (!mobile) {
+      setMobileError('');
+      setMobileSuccess('');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const session = await getSession();
+      const companyId = session.logged_company_id;
+      const curQueueId = (isUpdate && queueId && queueId !== '-1') ? queueId : '-1';
+
+      const result = await checkDuplicateMobile(
+        mobile,
+        'Q',
+        '0',
+        companyId,
+        locationId || '0',
+        curQueueId
+      );
+
+      if (result && String(result.code) === '1') {
+        setMobileError(result.message || 'Mobile number already in use');
+        setMobileSuccess('');
+      } else if (result && String(result.code) !== '1') {
+        setMobileError('');
+        const msg = result.message ? result.message.replace('OK', '').trim() : '';
+        setMobileSuccess(msg);
+      }
+    } catch (e) {
+      console.log('Error checking duplicate mobile:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSave = async (applyToAll = '0') => {
     if (!formData.txtqname || !formData.mobile_number) {
       ToastService.show({
         message: 'Please fill required fields',
         type: 'error',
       });
+      return;
+    }
+
+    if (mobileError) {
+      ToastService.show({ message: mobileError, type: 'warning' });
       return;
     }
 
@@ -219,6 +279,27 @@ export const AddQueueScreen = ({ navigation, route }) => {
     }
   };
 
+  const toggleDisplayScreen = async () => {
+    const nextState = !isDisplayScreen;
+    setIsDisplayScreen(nextState);
+
+    if (nextState) {
+      if (queueId && locationId) {
+        await saveTerminalDisplayIds(locationId, queueId);
+        ToastService.show({
+          message: 'This device set as queue display screen',
+          type: 'success',
+        });
+      }
+    } else {
+      await saveTerminalDisplayIds('', '');
+      ToastService.show({
+        message: 'Display screen setting removed',
+        type: 'info',
+      });
+    }
+  };
+
   const incrementDays = () => {
     const d = parseInt(formData.txtprebookDays);
     if (d < 7) setFormData({ ...formData, txtprebookDays: (d + 1).toString() });
@@ -229,14 +310,16 @@ export const AddQueueScreen = ({ navigation, route }) => {
     if (d > 1) setFormData({ ...formData, txtprebookDays: (d - 1).toString() });
   };
 
+
   return (
     <View style={styles.container}>
       <CustomHeader
         title={isUpdate ? 'Update Queue Detail' : 'Add Queue Detail'}
         showBackIcon={true}
         navigation={navigation}
-        showRightIcon={true}
-        rightIconName="grid-on"
+        showRightIcon={isUpdate}
+        rightIconName={isDisplayScreen ? 'grid-on' : 'grid-off'}
+        rightIconPress={toggleDisplayScreen}
       />
 
       <View style={styles.subHeader}>
@@ -283,11 +366,23 @@ export const AddQueueScreen = ({ navigation, route }) => {
               placeholderTextColor={theme.colors.placeholder}
               keyboardType="phone-pad"
               value={formData.mobile_number}
-              onChangeText={text =>
-                setFormData({ ...formData, mobile_number: text })
-              }
+              onChangeText={text => {
+                setFormData({ ...formData, mobile_number: text });
+                if (mobileError) setMobileError('');
+                if (mobileSuccess) setMobileSuccess('');
+              }}
+              onBlur={handleMobileBlur}
             />
           </View>
+          {mobileError ? (
+            <Text style={{ color: theme.colors.error, fontSize: 12, marginTop: 4, marginBottom: 10 }}>
+              {mobileError}
+            </Text>
+          ) : mobileSuccess ? (
+            <Text style={{ color: theme.colors.success, fontSize: 12, marginTop: 4, marginBottom: 10 }}>
+              {mobileSuccess}
+            </Text>
+          ) : <View style={{ height: 14 }} />}
         </>
 
         <Text style={styles.label}>Email ID</Text>
@@ -370,24 +465,28 @@ export const AddQueueScreen = ({ navigation, route }) => {
             }
           />
         </View>
-        <Text style={styles.label}>Pre-Booking Days</Text>
         {formData.rdprebook && (
-          <View style={styles.daysSelector}>
-            <TouchableOpacity onPress={decrementDays} style={styles.dayBtn}>
-              <MaterialIcons
-                name="remove"
-                size={24}
-                color={theme.colors.primary}
-              />
-            </TouchableOpacity>
-            <Text style={styles.daysText}>{formData.txtprebookDays} Days</Text>
-            <TouchableOpacity onPress={incrementDays} style={styles.dayBtn}>
-              <MaterialIcons
-                name="add"
-                size={24}
-                color={theme.colors.primary}
-              />
-            </TouchableOpacity>
+          <View style={styles.preBookContainer}>
+            <Text style={styles.label}>Pre-Booking Days</Text>
+            <View style={styles.daysSelector}>
+              <TouchableOpacity onPress={decrementDays} style={styles.dayBtn}>
+                <MaterialIcons
+                  name="remove"
+                  size={24}
+                  color={theme.colors.primary}
+                />
+              </TouchableOpacity>
+              <Text style={styles.daysText}>
+                {formData.txtprebookDays} Days
+              </Text>
+              <TouchableOpacity onPress={incrementDays} style={styles.dayBtn}>
+                <MaterialIcons
+                  name="add"
+                  size={24}
+                  color={theme.colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -450,6 +549,10 @@ export const AddQueueScreen = ({ navigation, route }) => {
               });
               return;
             }
+            if (mobileError) {
+              ToastService.show({ message: mobileError, type: 'warning' });
+              return;
+            }
             navigation.navigate('WorkingHours', {
               initialTimeSlots: formData.timeSlots,
               onSave: slots => setFormData({ ...formData, timeSlots: slots }),
@@ -473,10 +576,15 @@ export const AddQueueScreen = ({ navigation, route }) => {
             style={styles.navRow}
             onPress={() => {
               if (!formData.txtqname || !formData.mobile_number) {
+                console.log('Please enter queue name & mobile number');
                 ToastService.show({
                   message: 'Please enter queue name & mobile number',
                   type: 'error',
                 });
+                return;
+              }
+              if (mobileError) {
+                ToastService.show({ message: mobileError, type: 'warning' });
                 return;
               }
               navigation.navigate('CompHolidaysList', {
@@ -590,6 +698,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
+  preBookContainer: {
+    alignItems: 'center',
+  },
   switchLabel: {
     fontSize: 13,
     color: theme.colors.textDark,
@@ -643,11 +754,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   ringGroupContainer: {
-    marginTop: 10,
     padding: 10,
     backgroundColor: theme.colors.white,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 4,
   },
 });
